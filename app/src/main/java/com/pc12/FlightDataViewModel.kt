@@ -15,7 +15,7 @@ import java.time.Instant.now
 data class UIState (
     val avionicsData: AvionicsData = AvionicsData(0, 0),
     val perfData: PerfData = PerfData(NaN),
-    val age: Long = 0,
+    val age: Long = 0
 )
 
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {

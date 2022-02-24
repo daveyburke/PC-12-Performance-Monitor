@@ -8,6 +8,6 @@ Requires Gogo Wi-Fi onboard (tested with L3 Avance). Future implementation will 
 **Warning**: THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
 for authoritative engine settings
 
-For developers: this app demonstrates "Modern Android Development" using Kotlin / Jetpack Compose with ViewModel, coroutines, and DataStore.
+For Android app developers: this simple app demonstrates "Modern Android Development" using Kotlin and Jetpack Compose with ViewModel, coroutines, and DataStore.
 
 

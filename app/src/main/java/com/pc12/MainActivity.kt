@@ -80,7 +80,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            var MAXAGE = 300  // 5 mins
+            val MAXAGE = 300  // 5 mins
             val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
             val altitudeStr = (if (torque.isNaN()) "---" else altitude)
             val outsideTempStr = (if (torque.isNaN()) "---" else outsideTemp)
@@ -217,7 +217,7 @@ fun FirstRunDialog(onStart: () -> Unit, onFinish: () -> Unit) {
                     )
                     Row {
                         Text(
-                            text = "I agree to these terms ",
+                            text = "I agree to these terms & conditions ",
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold,)
                         Checkbox(
@@ -239,7 +239,7 @@ fun FirstRunDialog(onStart: () -> Unit, onFinish: () -> Unit) {
                         onStart()
                         firstRun.value = false
                     }) {
-                    Text("AGREE")
+                    Text("PROCEED")
                 }
             },
             dismissButton = {

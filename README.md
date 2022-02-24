@@ -3,8 +3,8 @@
 Android app that monitors altitude and temp and suggests max cruise torque for Pilatus PC-12NG / NGX aircraft (S/N 1451+).
 Requires Gogo Wi-Fi (L3 Avance tested). Future implementation will use EConnect Wi-Fi.
 
-<img src="https://github.com/daveyburke/PC-12-Performance-Monitor/blob/master/Screenshot_1.png" alt="Schematic" width="400"/>
-<img src="https://github.com/daveyburke/PC-12-Performance-Monitor/blob/master/Screenshot_2.png" alt="Schematic" width="400"/>
+<img src="https://github.com/daveyburke/PC-12-Performance-Monitor/blob/master/Screenshot_1.png" alt="" width="200"/>
+<img src="https://github.com/daveyburke/PC-12-Performance-Monitor/blob/master/Screenshot_2.png" alt="" width="200"/>
 
 Warning: THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
 for authoritative engine settings

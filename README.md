@@ -1,7 +1,10 @@
 # PC-12-Performance-Monitor
 
-Android app for pilots that monitors altitude and outside air temp from avionics to automatically suggest max cruise torque for Pilatus PC-12NG / NGX aircraft (S/N 1451+).
-Requires Gogo Wi-Fi onboard (tested with L3 Avance). Future implementation may add support for eConnect Wi-Fi. Data consistent with eQRH tables.
+<b>Warning</b>: THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
+for authoritative engine settings.
+
+Android app for pilots that monitors altitude and outside air temp from avionics to automatically indicate max cruise engine torque for Pilatus PC-12NG / NGX aircraft.
+Requires Gogo Wi-Fi onboard (tested with L3 Avance). Future implementation may add support for eConnect Wi-Fi. Data consistent with eQRH tables (with interpolation). Supports 4-blade and 5-blade aircraft (S/N 1451+; for NGX, assumes 1700 RPM mode).
 <br/>
 <br/>
 
@@ -13,10 +16,6 @@ Requires Gogo Wi-Fi onboard (tested with L3 Avance). Future implementation may a
 
 <br/>
 Avionics data outline indicates age of data in seconds/minutes. The outline boxes will turn red if the age of received avionics data is older than 5 mins to warn of stale data. Data refreshes every 5 seconds when app is open.
-<br/>
-<br/>
-<b>Warning</b>: THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
-for authoritative engine settings
 <br/>
 <br/>
 

@@ -11,13 +11,12 @@ object PerfCalculator {
     val PC_12_47E_MSN_2001_5_Blade: Int = 2
 
     fun compute(aircraftType : Int, avionicsData: AvionicsData /*, weight: Int */) : PerfData {
-        val perfData: PerfData = PerfData(NaN)
+        val perfData = PerfData(NaN)
 
         if (avionicsData.altitude >= 10000 && avionicsData.altitude <= 30000 &&
             avionicsData.outsideTemp >= -55 && avionicsData.outsideTemp <= 24) {
 
             val i = ((avionicsData.altitude + 500) / 1000f).toInt() - 10
-
             var j = 0
             var interpolate = false
             for (outsideTemp: Int in SAT_TEMP_INDEX) {
@@ -30,16 +29,15 @@ object PerfCalculator {
                 j++
             }
 
-            var data = when(aircraftType) {
+            val data = when(aircraftType) {
                 PC_12_47E_MSN_1451_1942_4_Blade -> TORQUE_1451_1942_4_MAX_CRUISE
                 PC_12_47E_MSN_1576_1942_5_Blade -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
                 PC_12_47E_MSN_2001_5_Blade -> TORQUE_2001_5_1700_RPM_MAX_CRUISE
                 else -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
             }
 
-            if (interpolate) {  // interpolate and round to two decimal places
-                perfData.torque = (data[i][j] +
-                        data[i][j - 1]) / 2f
+            if (interpolate) {  // and round to 2 decimal places
+                perfData.torque = (data[i][j] + data[i][j - 1]) / 2f
                 perfData.torque = (perfData.torque * 100.0f + 0.5f).toInt() / 100.0f
             } else {
                 perfData.torque = data[i][j]
@@ -49,11 +47,11 @@ object PerfCalculator {
                         avionicsData.outsideTemp)
         }
 
-        return perfData;
+        return perfData
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    // DATA - consistent with eQRH 1.3.2
+    // DATA - consistent with eQRH v1.3.2
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     val SAT_TEMP_INDEX = arrayOf(-55,-53,-51,-49,-47,-45,-43,-41,-39,-37,-35,-33,-31,-29,-27,-25,-23,-21,-20,-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,10,12,14,16,18,20,22,24)
@@ -128,7 +126,7 @@ object PerfCalculator {
         arrayOf(30.0f,30.1f,30.0f,29.8f,29.6f,29.4f,29.2f,28.8f,28.3f,27.7f,27.2f,26.6f,26.0f,25.5f,24.9f,24.3f,23.7f,23.1f,22.8f,22.5f,22.1f,21.8f,21.5f,21.2f,20.9f,20.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
         arrayOf(29.0f,28.9f,28.8f,28.6f,28.4f,28.3f,27.8f,27.3f,26.8f,26.2f,25.7f,25.1f,24.6f,24.0f,23.5f,22.9f,22.4f,21.7f,21.4f,21.1f,20.8f,20.5f,20.2f,19.9f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN))
 
-    // Additional data - this requires weight as input, i.e. 3D array. No impl
+    // Additional data - this requires weight as input, i.e. 3D array. Not impl
 
     // val AIRSPEED_1451_1942_4_MAX_CRUISE = ...
     // val AIRSPEED_1576_1942_5_MAX_CRUISE = ...

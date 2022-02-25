@@ -20,10 +20,10 @@ data class UIState (
 
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
     private val TAG = FlightDataViewModel::class.qualifiedName
-    private val CLOCK_PERIOD_SEC = 5
+    private val REQUEST_DATA_PERIOD_SEC = 5
 
     private val aircraftTypeStore = AircraftTypeStore(application)
-    private var avionicsInterface = GogoAvionicsInterface()
+    private var avionicsInterface = GogoAvionicsInterface()  // TODO: Add EConnect option
     private var isNetworkRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
@@ -33,7 +33,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     fun startNetworkRequests() {
         if (!isNetworkRunning && userAgreedTerms) {
-            Log.i(TAG, "Starting network coroutine...")
+            Log.i(TAG, "Starting network I/O coroutine...")
             networkRequestLoop()
             isNetworkRunning = true
         }
@@ -41,7 +41,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     fun stopNetworkRequests() {
         if (isNetworkRunning) {
-            Log.i(TAG, "Stopping network coroutine...")
+            Log.i(TAG, "Stopping network I/O coroutine...")
             networkJob.cancel()
             isNetworkRunning = false
         }
@@ -68,7 +68,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                 if (data != null) {
                     Log.i(TAG, "Received data " + data.altitude + " " + data.outsideTemp)
 
-                    var aircraftType = aircraftTypeStore.aircraftTypeFlow.first()
+                    val aircraftType = aircraftTypeStore.aircraftTypeFlow.first()
                     Log.i(TAG, "Using aircraft model: " + aircraftTypeStore.aircraftTypeToString(aircraftType))
 
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
@@ -80,7 +80,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     val elapsedTime = now().getEpochSecond() - lastSuccessTime
                     uiState = uiState.copy(age = elapsedTime)
                 }
-                delay(CLOCK_PERIOD_SEC * 1000L)
+                delay(REQUEST_DATA_PERIOD_SEC * 1000L)
             }
         }
     }

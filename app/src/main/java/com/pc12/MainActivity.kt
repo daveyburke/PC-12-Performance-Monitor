@@ -116,8 +116,6 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
                 ),
                 textStyle = TextStyle(fontWeight = FontWeight.Medium, fontSize = 20.sp),
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
         }
     }
 }

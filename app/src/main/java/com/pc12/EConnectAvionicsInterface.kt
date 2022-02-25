@@ -1,7 +1,7 @@
 package com.pc12
 
 /**
- * TODO: Implement against EConnect Websocket
+ * TODO: Implement against eConnect Websocket
  */
 class EConnectAvionicsInterface : AvionicsInterface {
     override suspend fun requestData(): AvionicsData? {

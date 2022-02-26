@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.sp
 import com.pc12.ui.theme.Cyan
 import com.pc12.ui.theme.PC12PerformanceMonitorTheme
 import kotlinx.coroutines.launch
-import java.lang.Float.NaN
 
 class MainActivity : ComponentActivity() {
     private val flightDataViewModel by viewModels<FlightDataViewModel>()
@@ -39,7 +38,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     if (!flightDataViewModel.getUserAgreedTerms()) {
-                        FirstRunDialog({
+                        WarningDialog({
                                 flightDataViewModel.setUserAgreedTerms()
                                 flightDataViewModel.startNetworkRequests()
                             },{
@@ -54,14 +53,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        flightDataViewModel.startNetworkRequests()
-    }
-
     override fun onPause() {
         super.onPause()
         flightDataViewModel.stopNetworkRequests()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        flightDataViewModel.startNetworkRequests()
     }
 }
 
@@ -80,7 +79,8 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            val MAXAGE = 300  // 5 mins
+            val MAXAGE = 300  // 5 min
+            val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
             val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
             val altitudeStr = (if (torque.isNaN()) "---" else altitude)
             val outsideTempStr = (if (torque.isNaN()) "---" else outsideTemp)
@@ -93,7 +93,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
                 label = { Text("Avionics Data" + if (!torque.isNaN()) " ($ageStr)" else "") },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    disabledTextColor = (if (isSystemInDarkTheme()) Color.White else Color.Black),
+                    disabledTextColor = textColor,
                     disabledBorderColor = statusColor,
                     disabledLabelColor = statusColor,
                 ),
@@ -110,7 +110,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
                 },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    disabledTextColor = (if (isSystemInDarkTheme()) Color.White else Color.Black),
+                    disabledTextColor = textColor,
                     disabledBorderColor = statusColor,
                     disabledLabelColor = statusColor,
                 ),
@@ -157,12 +157,13 @@ fun DropDownMenuItems(expanded: Boolean, updateExpanded: (Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val dataStore = remember { AircraftTypeStore(context)  }
-    val aircraftTypeFlow = dataStore.aircraftTypeFlow.collectAsState(initial = PerfCalculator.PC_12_47E_MSN_1576_1942_5_Blade)
+    val aircraftTypeFlow = dataStore.aircraftTypeFlow.collectAsState(
+        initial = AircraftTypeStore.PC_12_47E_MSN_1576_1942_5_Blade)
 
     val menuItems = listOf(
-        dataStore.aircraftTypeToString(PerfCalculator.PC_12_47E_MSN_1451_1942_4_Blade),
-        dataStore.aircraftTypeToString(PerfCalculator.PC_12_47E_MSN_1576_1942_5_Blade),
-        dataStore.aircraftTypeToString(PerfCalculator.PC_12_47E_MSN_2001_5_Blade)
+        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_1451_1942_4_Blade),
+        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_1576_1942_5_Blade),
+        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_2001_5_Blade)
     )
 
     DropdownMenu(
@@ -189,7 +190,7 @@ fun DropDownMenuItems(expanded: Boolean, updateExpanded: (Boolean) -> Unit) {
 }
 
 @Composable
-fun FirstRunDialog(onStart: () -> Unit, onFinish: () -> Unit) {
+fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
     val firstRun = remember { mutableStateOf(true)  }
 
     if (firstRun.value) {
@@ -234,7 +235,7 @@ fun FirstRunDialog(onStart: () -> Unit, onFinish: () -> Unit) {
                     enabled = isTermsChecked.value,
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.White, contentColor = Color.Black),
                     onClick = {
-                        onStart()
+                        onProceed()
                         firstRun.value = false
                     }) {
                     Text("PROCEED")
@@ -244,7 +245,7 @@ fun FirstRunDialog(onStart: () -> Unit, onFinish: () -> Unit) {
                 Button(
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.White, contentColor = Color.Black),
                     onClick = {
-                        onFinish()
+                        onCancel()
                     }) {
                     Text("CANCEL")
                 }

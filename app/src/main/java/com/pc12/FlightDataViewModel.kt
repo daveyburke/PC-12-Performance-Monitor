@@ -66,11 +66,10 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                 }
 
                 if (data != null) {
-                    Log.i(TAG, "Received data " + data.altitude + " " + data.outsideTemp)
-
                     val aircraftType = aircraftTypeStore.aircraftTypeFlow.first()
                     Log.i(TAG, "Using aircraft model: " + aircraftTypeStore.aircraftTypeToString(aircraftType))
 
+                    Log.i(TAG, "Calculating torque for: " + data.altitude + "ft, " + data.outsideTemp + "c")
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
                     val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData)
 
@@ -80,6 +79,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     val elapsedTime = now().getEpochSecond() - lastSuccessTime
                     uiState = uiState.copy(age = elapsedTime)
                 }
+
                 delay(REQUEST_DATA_PERIOD_SEC * 1000L)
             }
         }

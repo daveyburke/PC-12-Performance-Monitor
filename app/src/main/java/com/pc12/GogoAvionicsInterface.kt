@@ -10,7 +10,7 @@ import java.net.URL
 /**
  * Validated with L3 Avance 4.3
  */
-class GogoAvionicsInterface() : AvionicsInterface {
+class GogoAvionicsInterface : AvionicsInterface {
     private val TAG = GogoAvionicsInterface::class.qualifiedName
     private var TIMEOUT = 1000
 
@@ -22,7 +22,7 @@ class GogoAvionicsInterface() : AvionicsInterface {
             val url = URL(GOGO_URI)
             val httpURLConnection = url.openConnection() as HttpURLConnection
             httpURLConnection.setConnectTimeout(TIMEOUT)
-            httpURLConnection.setReadTimeout(TIMEOUT)
+            httpURLConnection.readTimeout = TIMEOUT
             httpURLConnection.requestMethod = "GET"
             httpURLConnection.doInput = true
             httpURLConnection.doOutput = false
@@ -31,14 +31,14 @@ class GogoAvionicsInterface() : AvionicsInterface {
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 val response = httpURLConnection.inputStream.bufferedReader()
                     .use { it.readText() }
-                Log.d(TAG, "HTTP response body: " + response)
+                Log.d(TAG, "HTTP response body: $response")
                 val jsonObject = JSONTokener(response).nextValue() as JSONObject
 
                 val altitude = jsonObject.getInt("altitudeFeet")
                 val outsideTemp = jsonObject.getInt("outsideTemp")
                 return AvionicsData(altitude, outsideTemp)
             } else {
-                Log.e(TAG, "Bad HTTP response code " + responseCode)
+                Log.e(TAG, "Bad HTTP response code $responseCode")
             }
         } catch (e: IOException) {
             Log.e(TAG, e.toString())

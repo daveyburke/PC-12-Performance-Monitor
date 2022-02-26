@@ -1,4 +1,4 @@
-# PC-12-Performance-Monitor
+# PC-12 Performance Monitor
 
 <b>Warning</b>: THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
 for authoritative engine settings.

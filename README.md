@@ -10,11 +10,12 @@ Android app for pilots that monitors altitude and outside air temp from avionics
 <p align="center">
 <img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_1.png" alt="" width="175"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_2.png" alt="" width="175"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_3.png" alt="" width="175"/>
 <br/>
+<br/>
 <em>Figure 1: Screenshots from app</em>
 </p>
 
 <br/>
-The app has a simple/clean UI. Avionics data outline indicates age of data in seconds/minutes. The outline boxes will turn red if the age of received avionics data is older than 5 mins to warn of stale data. Data refreshes every 5 seconds when app is open. Supports dark mode for night flying.
+The app has a simple/clean UI. The age of the avionics data is shown in seconds/minutes. The text outline boxes will turn red if the age of received avionics data is older than 5 mins to warn of stale data. Data refreshes every 5 seconds when the app is open. The aircraft type can be selected from the overflow menu and is persisted across app restarts. Supports dark mode for night flying.
 <br/>
 <br/>
 

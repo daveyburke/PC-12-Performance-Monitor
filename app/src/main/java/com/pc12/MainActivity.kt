@@ -4,11 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -124,6 +124,16 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
 fun OverflowMenu() {
     val expanded = remember { mutableStateOf(false) }
     val scaffoldState = rememberScaffoldState()
+    val showAircraftTypeDialog = remember { mutableStateOf(false) }
+    val showWifiTypeDialog = remember { mutableStateOf(false) }
+
+    if (showAircraftTypeDialog.value) AircraftTypeSettings {
+        showAircraftTypeDialog.value = false
+    }
+
+    if (showWifiTypeDialog.value) WifiTypeSettings {
+        showWifiTypeDialog.value = false
+    }
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -145,7 +155,22 @@ fun OverflowMenu() {
                             tint = Color.White,
                         )
                     }
-                    DropDownMenuItems(expanded = expanded.value) { expanded.value = it }
+                    DropdownMenu(
+                        expanded = expanded.value,
+                        onDismissRequest = { expanded.value = false }) {
+                        DropdownMenuItem(onClick = {
+                            showAircraftTypeDialog.value = true
+                            expanded.value = false
+                        }) {
+                            Text(text = "Aircraft Type")
+                        }
+                        DropdownMenuItem(onClick = {
+                            showWifiTypeDialog.value = true
+                            expanded.value = false
+                        }) {
+                            Text(text = "Wi-Fi Type")
+                        }
+                    }
                 }
             )
         }
@@ -153,40 +178,92 @@ fun OverflowMenu() {
 }
 
 @Composable
-fun DropDownMenuItems(expanded: Boolean, updateExpanded: (Boolean) -> Unit) {
+fun AircraftTypeSettings(onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val dataStore = remember { AircraftTypeStore(context)  }
-    val aircraftTypeFlow = dataStore.aircraftTypeFlow.collectAsState(
-        initial = AircraftTypeStore.PC_12_47E_MSN_1576_1942_5_Blade)
-
-    val menuItems = listOf(
-        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_1451_1942_4_Blade),
-        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_1576_1942_5_Blade),
-        dataStore.aircraftTypeToString(AircraftTypeStore.PC_12_47E_MSN_2001_5_Blade)
+    val settingsStore = remember { SettingsStore(context)  }
+    val aircraftTypeFlow = settingsStore.aircraftTypeFlow.collectAsState(
+        initial = SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade)
+    val optionItems = listOf(
+        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade),
+        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade),
+        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_2001_5_Blade)
     )
 
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = { updateExpanded(false) }) {
-        menuItems.forEachIndexed { index, item ->
-            DropdownMenuItem(onClick = {
-                scope.launch {
-                    dataStore.saveAircraftModel(index)
-                }
-                updateExpanded(false)
-            }) {
-                Text(text = item, Modifier.weight(1f))
-                if (index == aircraftTypeFlow.value) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(25.dp)
-                    )
+    SelectOptionsDialog("Aircraft Type", optionItems, aircraftTypeFlow.value,
+        onSelected =
+        {
+            scope.launch {
+                settingsStore.saveAircraftType(it)
+            }
+        },
+        onClose = { onClose() }
+    )
+}
+
+@Composable
+fun WifiTypeSettings(onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val settingsStore = remember { SettingsStore(context)  }
+    val wifiTypeFlow = settingsStore.wifiTypeFlow.collectAsState(
+        initial = SettingsStore.GOGO_WIFI)
+    val optionItems = listOf(
+        SettingsStore.wifiTypeToString(SettingsStore.GOGO_WIFI),
+        SettingsStore.wifiTypeToString(SettingsStore.ECONNECT_WIFI)
+    )
+
+    SelectOptionsDialog("Wi-Fi Type", optionItems, wifiTypeFlow.value,
+        onSelected =
+        {
+            scope.launch {
+                settingsStore.saveWifiType(it)
+            }
+        },
+        onClose = { onClose() }
+    )
+}
+
+@Composable
+fun SelectOptionsDialog(title: String, optionItems: List<String>, selectedIndex: Int, onSelected:(index: Int) -> Unit, onClose:() -> Unit) {
+    AlertDialog(
+        title = {
+            Text(text = title)
+        },
+        text = {
+            Spacer(modifier = Modifier.height(20.dp))
+            Column {
+                optionItems.forEachIndexed { index, item ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(5.dp),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        RadioButton(
+                            selected = index == selectedIndex,
+                            onClick = { onSelected(index) }
+                            )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = item,
+                            modifier = Modifier.clickable(onClick = { onSelected(index) })
+                        )
+                    }
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onClose()
+                }) {
+                Text("OK")
+            }
+        },
+        onDismissRequest = { },
+    )
 }
 
 @Composable

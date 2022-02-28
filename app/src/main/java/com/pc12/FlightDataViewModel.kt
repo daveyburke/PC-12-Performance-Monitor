@@ -22,8 +22,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private val TAG = FlightDataViewModel::class.qualifiedName
     private val REQUEST_DATA_PERIOD_SEC = 5
 
-    private val aircraftTypeStore = AircraftTypeStore(application)
-    private var avionicsInterface = GogoAvionicsInterface()  // TODO: Add EConnect option
+    private val settingsStore = SettingsStore(application)
     private var isNetworkRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
@@ -59,15 +58,22 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         networkJob = viewModelScope.launch {
             var lastSuccessTime: Long = now().getEpochSecond()
             while (isActive) {
+                val wifiType = settingsStore.wifiTypeFlow.first()
+                val avionicsInterface = when (wifiType) {
+                    SettingsStore.GOGO_WIFI -> GogoAvionicsInterface()
+                    SettingsStore.ECONNECT_WIFI -> EConnectAvionicsInterface()
+                    else -> EConnectAvionicsInterface()
+                }
+
                 val data:AvionicsData?
                 withContext(Dispatchers.IO) {
-                    Log.i(TAG, "Requesting data...")
+                    Log.i(TAG, "Requesting data via " + SettingsStore.wifiTypeToString(wifiType))
                     data = avionicsInterface.requestData()
                 }
 
                 if (data != null) {
-                    val aircraftType = aircraftTypeStore.aircraftTypeFlow.first()
-                    Log.i(TAG, "Using aircraft model: " + aircraftTypeStore.aircraftTypeToString(aircraftType))
+                    val aircraftType = settingsStore.aircraftTypeFlow.first()
+                    Log.i(TAG, "Using aircraft model: " + SettingsStore.aircraftTypeToString(aircraftType))
 
                     Log.i(TAG, "Calculating torque for: " + data.altitude + "ft, " + data.outsideTemp + "c")
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)

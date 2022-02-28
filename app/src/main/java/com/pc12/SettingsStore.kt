@@ -27,9 +27,9 @@ class SettingsStore(private val context: Context) {
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {
-                PC_12_47E_MSN_1451_1942_4_Blade -> "MSN 1451-1942 4 Blade"
-                PC_12_47E_MSN_1576_1942_5_Blade -> "MSN 1576-1942 5 Blade"
-                PC_12_47E_MSN_2001_5_Blade -> "MSN 2001+ 5 Blade"
+                PC_12_47E_MSN_1451_1942_4_Blade -> "PC-12/47E MSN 1451-1942 4 Blade"
+                PC_12_47E_MSN_1576_1942_5_Blade -> "PC-12/47E MSN 1576-1942 5 Blade"
+                PC_12_47E_MSN_2001_5_Blade -> "PC-12/47E MSN 2001+ 5 Blade"
                 else -> "Unknown"
             }
         }

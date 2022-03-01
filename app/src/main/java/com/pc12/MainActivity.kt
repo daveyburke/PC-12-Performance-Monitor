@@ -79,7 +79,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            val MAXAGE = 300  // 5 min
+            val MAXAGE = 60  // 1 min
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
             val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
             val altitudeStr = (if (torque.isNaN()) "---" else altitude)
@@ -90,7 +90,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
             OutlinedTextField(
                 value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103",
                 onValueChange = { },
-                label = { Text("Avionics Data" + if (!torque.isNaN()) " ($ageStr)" else "") },
+                label = { Text("Avionics Data" + if (!torque.isNaN() && age > 0) " ($ageStr)" else "") },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     disabledTextColor = textColor,

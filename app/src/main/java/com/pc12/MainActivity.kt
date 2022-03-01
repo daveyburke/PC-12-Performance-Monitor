@@ -90,7 +90,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
             OutlinedTextField(
                 value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103",
                 onValueChange = { },
-                label = { Text("Avionics Data" + if (!torque.isNaN() && age > 0) " ($ageStr)" else "") },
+                label = { Text("Avionics Data" + if (!torque.isNaN() && age > 0) " (last update: $ageStr)" else "") },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     disabledTextColor = textColor,

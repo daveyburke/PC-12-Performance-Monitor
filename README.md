@@ -15,7 +15,7 @@ Android app that monitors altitude and outside air temp from avionics to automat
 </p>
 
 <br/>
-The app has a simple/clean UI. Data refresh is attempted every 5 seconds when the app is open. The age of the avionics data is shown in seconds/minutes. The text outline boxes will turn red if the age of received avionics data is older than 1 min to warn of stale data. The aircraft type and Wi-Fi can be selected from the overflow menu and is persisted across app restarts. Supports dark mode for night flying.
+The app has a simple/clean UI. Data refresh is attempted every 5 seconds when the app is open. The age of the avionics data is shown in seconds/minutes if it is old. The text outline boxes will turn red if the age of received avionics data is older than 1 min to warn of stale data. The aircraft type and Wi-Fi can be selected configured from overflow menu and is persisted across app restarts. Supports dark mode for night flying.
 <br/>
 <br/>
 

@@ -239,7 +239,7 @@ fun SelectOptionsDialog(title: String, optionItems: List<String>, selectedIndex:
                             .fillMaxWidth()
                             .padding(5.dp),
                         horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
                             selected = index == selectedIndex,

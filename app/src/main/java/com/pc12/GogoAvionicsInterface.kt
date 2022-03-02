@@ -61,8 +61,8 @@ class GogoAvionicsInterface : AvionicsInterface {
         return null  // fail
     }
 
-    // Noticed bug where video.gogo.aero data can freeze so detect this here
-    // TODO: File bug against Gogo to fix
+    // Noticed bug where video.gogo.aero data stopped updating. So detect stale data to alert pilot.
+    // Filed bug with Gogo. Can unfreeze via video.gogo.aero/admin and selecting refresh config
     private fun livenessCheck(presentLat: String, presentLon: String): Boolean {
         var positionChanged = false
         if (presentLat != lastKnownLat) {

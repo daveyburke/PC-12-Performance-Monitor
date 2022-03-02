@@ -56,6 +56,38 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
         }
     }
 
+    override fun onMessage(webSocket: WebSocket, text: String) {
+        Log.d(TAG, "Websocket received: $text")
+
+        if (text == "5:::{\"name\":\"connected\"}") {
+            webSocket.send("5:::{\"name\":\"fms_data:code\",\"args\":[\"2\"]}")  // alt
+            webSocket.send("5:::{\"name\":\"fms_data:code\",\"args\":[\"13\"]}") // temp
+        } else {
+            if (text.contains("fms_data:code:2")) {
+                altitude = getJsonValueToInt(text)
+            } else if (text.contains("fms_data:code:13")) {
+                outsideTemp = getJsonValueToInt(text)
+                webSocket.close(NORMAL_CLOSURE_STATUS, null)  // causes socket error
+            }
+        }
+    }
+
+    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+        super.onClosed(webSocket, code, reason)
+        Log.d(TAG, "Websocket closed $code")
+        responseLock.withLock {
+            responseSignal.signal()
+        }
+    }
+
+    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        super.onFailure(webSocket, t, response)
+        Log.e(TAG,"Websocket error : " + t.message)
+        responseLock.withLock {
+            responseSignal.signal()
+        }
+    }
+
     private fun getWebSocketAddr(): String? {
         val BASE = "ws://$ECONNECT_IP/socket.io/1/websocket/"
         val client = OkHttpClient.Builder()
@@ -79,24 +111,6 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
         return null
     }
 
-    override fun onOpen(webSocket: WebSocket, response: Response) { }
-
-    override fun onMessage(webSocket: WebSocket, text: String) {
-        Log.d(TAG, "Websocket received: $text")
-
-        if (text == "5:::{\"name\":\"connected\"}") {
-            webSocket.send("5:::{\"name\":\"fms_data:code\",\"args\":[\"2\"]}")  // alt
-            webSocket.send("5:::{\"name\":\"fms_data:code\",\"args\":[\"13\"]}") // temp
-        } else {
-            if (text.contains("fms_data:code:2")) {
-                altitude = getJsonValueToInt(text)
-            } else if (text.contains("fms_data:code:13")) {
-                outsideTemp = getJsonValueToInt(text)
-                webSocket.close(NORMAL_CLOSURE_STATUS, null)  // causes socket error
-            }
-        }
-    }
-
     @Throws (NumberFormatException::class)
     private fun getJsonValueToInt(text: String): Int {
         try {
@@ -111,22 +125,6 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
             Log.e(TAG, "Could not parse: $text")
         }
         return INT_NAN
-    }
-
-    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-        super.onClosed(webSocket, code, reason)
-        Log.d(TAG, "Websocket closed $code")
-        responseLock.withLock {
-            responseSignal.signal()
-        }
-    }
-
-    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        super.onFailure(webSocket, t, response)
-        Log.e(TAG,"Websocket error : " + t.message)
-        responseLock.withLock {
-            responseSignal.signal()
-        }
     }
 }
 

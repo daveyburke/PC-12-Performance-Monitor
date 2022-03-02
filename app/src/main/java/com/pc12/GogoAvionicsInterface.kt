@@ -77,9 +77,9 @@ class GogoAvionicsInterface : AvionicsInterface {
         }
 
         if (positionChanged) {
-            lastChange = Instant.now().getEpochSecond()
+            lastChange = Instant.now().epochSecond
         } else {
-            if (Instant.now().getEpochSecond() - lastChange > POSITION_TIMEOUT_SEC) {
+            if (Instant.now().epochSecond - lastChange > POSITION_TIMEOUT_SEC) {
                 Log.w(TAG, "Liveness check failed")
                 return false
             }

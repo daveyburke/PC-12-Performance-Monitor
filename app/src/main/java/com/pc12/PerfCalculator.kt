@@ -39,7 +39,7 @@ object PerfCalculator {
                 perfData.torque = data[i][j]
             }
         } else {
-            Log.e(TAG, "Values out of range: " + avionicsData.altitude + " " +
+            Log.i(TAG, "Values out of range: " + avionicsData.altitude + " " +
                         avionicsData.outsideTemp)
         }
 

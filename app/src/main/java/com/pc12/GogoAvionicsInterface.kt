@@ -39,7 +39,7 @@ class GogoAvionicsInterface : AvionicsInterface {
         try {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val body = response.body()!!.string()
+                    val body = response.body!!.string()
                     if (body != null) {
                         try {
                             val jsonObject = JSONTokener(body).nextValue() as JSONObject
@@ -92,7 +92,7 @@ class GogoAvionicsInterface : AvionicsInterface {
 }
 
 /*
- * Sample response:
+ * Sample response (note outsideTemp doesn't appear when on ground):
  * {"altitudeFeet":23005,"departBaggageId":"BFI","departureId":"KBFI",
  * "departureLat":47.53329849243164,"departureLon":-122.3000030517578,
  * "destBaggageId":"PAO","destinationId":"KPAO","destinationLat":37.383300781250,

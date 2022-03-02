@@ -40,19 +40,17 @@ class GogoAvionicsInterface : AvionicsInterface {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body!!.string()
-                    if (body != null) {
-                        try {
-                            val jsonObject = JSONTokener(body).nextValue() as JSONObject
-                            val altitude = jsonObject.getInt("altitudeFeet")
-                            val outsideTemp = jsonObject.getInt("outsideTemp")
-                            val presentLat = jsonObject.getString("presentLat")
-                            val presentLon = jsonObject.getString("presentLon")
-                            if (livenessCheck(presentLat, presentLon)) {
-                                return AvionicsData(altitude, outsideTemp)
-                            }
-                        } catch (e: JSONException) {
-                            Log.e(TAG, "Could not parse: $body")
+                    try {
+                        val jsonObject = JSONTokener(body).nextValue() as JSONObject
+                        val altitude = jsonObject.getInt("altitudeFeet")
+                        val outsideTemp = jsonObject.getInt("outsideTemp")
+                        val presentLat = jsonObject.getString("presentLat")
+                        val presentLon = jsonObject.getString("presentLon")
+                        if (livenessCheck(presentLat, presentLon)) {
+                            return AvionicsData(altitude, outsideTemp)
                         }
+                    } catch (e: JSONException) {
+                        Log.e(TAG, "Could not parse: $body")
                     }
                 }
             }

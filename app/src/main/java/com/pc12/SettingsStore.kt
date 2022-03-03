@@ -22,8 +22,8 @@ class SettingsStore(private val context: Context) {
         val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
         val PC_12_47E_MSN_2001_5_Blade: Int = 2
 
-        val GOGO_WIFI: Int = 0
-        val ECONNECT_WIFI: Int = 1
+        val ECONNECT_WIFI: Int = 0
+        val GOGO_WIFI: Int = 1
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {
@@ -35,8 +35,8 @@ class SettingsStore(private val context: Context) {
         }
         fun wifiTypeToString(type : Int) : String {
             return when (type) {
-                GOGO_WIFI -> "Gogo Wi-Fi"
                 ECONNECT_WIFI -> "Emteq eConnect"
+                GOGO_WIFI -> "Gogo Wi-Fi"
                 else -> "Unknown"
             }
         }
@@ -55,7 +55,7 @@ class SettingsStore(private val context: Context) {
 
     val wifiTypeFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[WIFI_TYPE] ?: GOGO_WIFI
+            preferences[WIFI_TYPE] ?: ECONNECT_WIFI
         }
 
     suspend fun saveWifiType(type: Int) {

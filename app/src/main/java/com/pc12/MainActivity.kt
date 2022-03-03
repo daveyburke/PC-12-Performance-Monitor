@@ -207,11 +207,10 @@ fun WifiTypeSettings(onClose: () -> Unit) {
     val context = LocalContext.current
     val settingsStore = remember { SettingsStore(context)  }
     val wifiTypeFlow = settingsStore.wifiTypeFlow.collectAsState(
-        initial = SettingsStore.GOGO_WIFI)
+        initial = SettingsStore.ECONNECT_WIFI)
     val optionItems = listOf(
-        SettingsStore.wifiTypeToString(SettingsStore.GOGO_WIFI),
-        SettingsStore.wifiTypeToString(SettingsStore.ECONNECT_WIFI)
-    )
+        SettingsStore.wifiTypeToString(SettingsStore.ECONNECT_WIFI),
+        SettingsStore.wifiTypeToString(SettingsStore.GOGO_WIFI))
 
     SelectOptionsDialog("Wi-Fi Type", optionItems, wifiTypeFlow.value,
         onSelected =

@@ -1,6 +1,7 @@
 package com.pc12
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             window.statusBarColor = Cyan.toArgb()
             PC12PerformanceMonitorTheme {
@@ -56,11 +58,13 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         flightDataViewModel.stopNetworkRequests()
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     override fun onResume() {
         super.onResume()
         flightDataViewModel.startNetworkRequests()
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 }
 
@@ -69,11 +73,12 @@ fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
     PerformanceDataDisplay(flightDataViewModel.uiState.avionicsData.altitude,
                            flightDataViewModel.uiState.avionicsData.outsideTemp,
                            flightDataViewModel.uiState.perfData.torque,
+                           flightDataViewModel.uiState.avionicsInterface,
                            flightDataViewModel.uiState.age)
 }
 
 @Composable
-fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: Long) {
+fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avionicsInterface: String, age: Long) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -82,15 +87,17 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, age: 
             val MAXAGE = 60  // 1 min
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
             val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
-            val altitudeStr = (if (torque.isNaN()) "---" else altitude)
-            val outsideTempStr = (if (torque.isNaN()) "---" else outsideTemp)
             val torqueStr = (if (torque.isNaN() || age > MAXAGE) "---" else torque)
             val ageStr = if (age > 60) (age / 60).toString() + " min" else "$age sec"
 
+            var avionicsLabel: String = "Avionics Data"
+            if (avionicsInterface != "") avionicsLabel += " - $avionicsInterface"
+            if (!torque.isNaN() && age > 0) avionicsLabel += " ($ageStr old)"
+
             OutlinedTextField(
-                value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103",
+                value = "Altitude: $altitude ft\nSAT: $outsideTemp \u2103",
                 onValueChange = { },
-                label = { Text("Avionics Data" + if (!torque.isNaN() && age > 0) " (last update: $ageStr)" else "") },
+                label = { Text(avionicsLabel) },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     disabledTextColor = textColor,
@@ -125,14 +132,14 @@ fun OverflowMenu() {
     val expanded = remember { mutableStateOf(false) }
     val scaffoldState = rememberScaffoldState()
     val showAircraftTypeDialog = remember { mutableStateOf(false) }
-    val showWifiTypeDialog = remember { mutableStateOf(false) }
+    val showAvionicsInterfaceDialog = remember { mutableStateOf(false) }
 
     if (showAircraftTypeDialog.value) AircraftTypeSettings {
         showAircraftTypeDialog.value = false
     }
 
-    if (showWifiTypeDialog.value) WifiTypeSettings {
-        showWifiTypeDialog.value = false
+    if (showAvionicsInterfaceDialog.value) AvionicsInterfaceSettings {
+        showAvionicsInterfaceDialog.value = false
     }
 
     Scaffold(
@@ -165,10 +172,10 @@ fun OverflowMenu() {
                             Text(text = "Aircraft Type")
                         }
                         DropdownMenuItem(onClick = {
-                            showWifiTypeDialog.value = true
+                            showAvionicsInterfaceDialog.value = true
                             expanded.value = false
                         }) {
-                            Text(text = "Wi-Fi Type")
+                            Text(text = "Avionics Interface")
                         }
                     }
                 }
@@ -202,21 +209,22 @@ fun AircraftTypeSettings(onClose: () -> Unit) {
 }
 
 @Composable
-fun WifiTypeSettings(onClose: () -> Unit) {
+fun AvionicsInterfaceSettings(onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val settingsStore = remember { SettingsStore(context)  }
-    val wifiTypeFlow = settingsStore.wifiTypeFlow.collectAsState(
-        initial = SettingsStore.ECONNECT_WIFI)
+    val avionicsInterfaceFlow = settingsStore.avionicsInterfaceFlow.collectAsState(
+        initial = SettingsStore.ECONNECT_INTERFACE)
     val optionItems = listOf(
-        SettingsStore.wifiTypeToString(SettingsStore.ECONNECT_WIFI),
-        SettingsStore.wifiTypeToString(SettingsStore.GOGO_WIFI))
+        SettingsStore.avionicsInterfaceToString(SettingsStore.ECONNECT_INTERFACE),
+        SettingsStore.avionicsInterfaceToString(SettingsStore.GOGO_INTERFACE),
+        SettingsStore.avionicsInterfaceToString(SettingsStore.AUTO_DETECT_INTERFACE))
 
-    SelectOptionsDialog("Wi-Fi Type", optionItems, wifiTypeFlow.value,
+    SelectOptionsDialog("Avionics Interface", optionItems, avionicsInterfaceFlow.value,
         onSelected =
         {
             scope.launch {
-                settingsStore.saveWifiType(it)
+                settingsStore.saveAvionicsInterface(it)
             }
         },
         onClose = { onClose() }
@@ -336,6 +344,6 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
 fun DefaultPreview() {
     PC12PerformanceMonitorTheme {
         OverflowMenu()
-        PerformanceDataDisplay(24000, -32, 30.1f, 5)
+        PerformanceDataDisplay(24000, -32, 30.1f, "Gogo", 5)
     }
 }

@@ -16,14 +16,15 @@ class SettingsStore(private val context: Context) {
     companion object {  // singleton
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
         val AIRCRAFT_TYPE = intPreferencesKey("aircraft_type")
-        val WIFI_TYPE = intPreferencesKey("wifi_type")
+        val AVIONICS_INTERFACE = intPreferencesKey("avionics_interface")
 
         val PC_12_47E_MSN_1451_1942_4_Blade: Int = 0
         val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
         val PC_12_47E_MSN_2001_5_Blade: Int = 2
 
-        val ECONNECT_WIFI: Int = 0
-        val GOGO_WIFI: Int = 1
+        val ECONNECT_INTERFACE: Int = 0
+        val GOGO_INTERFACE: Int = 1
+        val AUTO_DETECT_INTERFACE: Int = 2
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {
@@ -33,10 +34,11 @@ class SettingsStore(private val context: Context) {
                 else -> "Unknown"
             }
         }
-        fun wifiTypeToString(type : Int) : String {
+        fun avionicsInterfaceToString(type : Int) : String {
             return when (type) {
-                ECONNECT_WIFI -> "Emteq eConnect"
-                GOGO_WIFI -> "Gogo Wi-Fi"
+                ECONNECT_INTERFACE -> "eConnect"
+                GOGO_INTERFACE -> "Gogo"
+                AUTO_DETECT_INTERFACE -> "Auto-detect"
                 else -> "Unknown"
             }
         }
@@ -53,14 +55,14 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    val wifiTypeFlow: Flow<Int> = context.dataStore.data
+    val avionicsInterfaceFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[WIFI_TYPE] ?: ECONNECT_WIFI
+            preferences[AVIONICS_INTERFACE] ?: ECONNECT_INTERFACE
         }
 
-    suspend fun saveWifiType(type: Int) {
+    suspend fun saveAvionicsInterface(avionics: Int) {
         context.dataStore.edit { preferences ->
-            preferences[WIFI_TYPE] = type
+            preferences[AVIONICS_INTERFACE] = avionics
         }
     }
 }

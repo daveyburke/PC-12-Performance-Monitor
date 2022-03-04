@@ -15,6 +15,7 @@ import java.time.Instant.now
 data class UIState (
     val avionicsData: AvionicsData = AvionicsData(0, 0),
     val perfData: PerfData = PerfData(NaN),
+    val avionicsInterface: String = "",
     val age: Long = 0
 )
 
@@ -26,6 +27,8 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private var isNetworkRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
+    private var autoAvionicsInterfaceType = SettingsStore.ECONNECT_INTERFACE
+    private var lastRequestSuccessful = true
 
     var uiState by mutableStateOf(UIState())
         private set
@@ -58,36 +61,59 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         networkJob = viewModelScope.launch {
             var lastSuccessTime: Long = now().getEpochSecond()
             while (isActive) {
-                val wifiType = settingsStore.wifiTypeFlow.first()
-                val avionicsInterface = when (wifiType) {
-                    SettingsStore.GOGO_WIFI -> GogoAvionicsInterface()
-                    SettingsStore.ECONNECT_WIFI -> EConnectAvionicsInterface()
-                    else -> EConnectAvionicsInterface()
+                var interfaceType = settingsStore.avionicsInterfaceFlow.first()
+                if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
+                    interfaceType = autoDetectAvionicsInterfaceType()
+                }
+
+                val avionicsInterface = when (interfaceType) {
+                    SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
+                    SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
+                    else -> EConnectAvionicsInterface()  // should never happen
                 }
 
                 val data:AvionicsData?
                 withContext(Dispatchers.IO) {
-                    Log.i(TAG, "Requesting data via " + SettingsStore.wifiTypeToString(wifiType))
+                    Log.i(TAG, "Requesting data via " + SettingsStore.avionicsInterfaceToString(interfaceType))
                     data = avionicsInterface.requestData()
                 }
 
                 if (data != null) {
                     val aircraftType = settingsStore.aircraftTypeFlow.first()
-                    Log.i(TAG, "Using aircraft model: " + SettingsStore.aircraftTypeToString(aircraftType))
-
-                    Log.i(TAG, "Calculating torque for: " + data.altitude + "ft, " + data.outsideTemp + "c")
+                    Log.i(TAG, "Calculating torque for: " + data.altitude + "ft, " + data.outsideTemp + "celsius " +
+                            "with aircraft model " + SettingsStore.aircraftTypeToString(aircraftType))
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
                     val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData)
 
-                    uiState = uiState.copy(avionicsData = newAvionicsData, perfData = newPerfData, age = 0)
+                    uiState = uiState.copy(avionicsData = newAvionicsData,
+                        perfData = newPerfData,
+                        avionicsInterface = SettingsStore.avionicsInterfaceToString(interfaceType),
+                        age = 0)
                     lastSuccessTime = now().getEpochSecond()
+                    lastRequestSuccessful = true
                 } else {
                     val elapsedTime = now().getEpochSecond() - lastSuccessTime
                     uiState = uiState.copy(age = elapsedTime)
+                    lastRequestSuccessful = false
                 }
 
                 delay(REQUEST_DATA_PERIOD_SEC * 1000L)
             }
         }
     }
+
+    private fun autoDetectAvionicsInterfaceType(): Int {
+        // In auto mode, we just round-robin across avionics interfaces until one works,
+        // then stick with it until it doesn't
+        Log.d(TAG, "Auto-detecting avionics interface")
+        if (!lastRequestSuccessful) {
+            if (autoAvionicsInterfaceType == SettingsStore.ECONNECT_INTERFACE) {
+                autoAvionicsInterfaceType = SettingsStore.GOGO_INTERFACE
+            } else if (autoAvionicsInterfaceType == SettingsStore.GOGO_INTERFACE) {
+                autoAvionicsInterfaceType = SettingsStore.ECONNECT_INTERFACE
+            }
+        }
+        return autoAvionicsInterfaceType
+    }
+
 }

@@ -59,17 +59,17 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
-            var lastSuccessTime: Long = now().getEpochSecond()
+            var lastSuccessTime: Long = now().epochSecond
             while (isActive) {
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
+                    Log.d(TAG, "Auto-detecting avionics interface")
                     interfaceType = autoDetectAvionicsInterfaceType()
                 }
-
                 val avionicsInterface = when (interfaceType) {
                     SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
                     SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
-                    else -> EConnectAvionicsInterface()  // should never happen
+                    else -> EConnectAvionicsInterface()  // should never get here
                 }
 
                 val data:AvionicsData?
@@ -80,20 +80,20 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                 if (data != null) {
                     val aircraftType = settingsStore.aircraftTypeFlow.first()
-                    Log.i(TAG, "Calculating torque for: " + data.altitude + "ft, " + data.outsideTemp + "celsius " +
-                            "with aircraft model " + SettingsStore.aircraftTypeToString(aircraftType))
+                    Log.i(TAG, "Calculating torque for: " + data.altitude + " ft, " + data.outsideTemp + " celsius " +
+                            "with aircraft type " + SettingsStore.aircraftTypeToString(aircraftType))
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
                     val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData)
 
-                    uiState = uiState.copy(avionicsData = newAvionicsData,
+                    uiState = uiState.copy(
+                        avionicsData = newAvionicsData,
                         perfData = newPerfData,
                         avionicsInterface = SettingsStore.avionicsInterfaceToString(interfaceType),
                         age = 0)
-                    lastSuccessTime = now().getEpochSecond()
+                    lastSuccessTime = now().epochSecond
                     lastRequestSuccessful = true
                 } else {
-                    val elapsedTime = now().getEpochSecond() - lastSuccessTime
-                    uiState = uiState.copy(age = elapsedTime)
+                    uiState = uiState.copy(age = now().epochSecond - lastSuccessTime)
                     lastRequestSuccessful = false
                 }
 
@@ -105,7 +105,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private fun autoDetectAvionicsInterfaceType(): Int {
         // In auto mode, we just round-robin across avionics interfaces until one works,
         // then stick with it until it doesn't
-        Log.d(TAG, "Auto-detecting avionics interface")
         if (!lastRequestSuccessful) {
             if (autoAvionicsInterfaceType == SettingsStore.ECONNECT_INTERFACE) {
                 autoAvionicsInterfaceType = SettingsStore.GOGO_INTERFACE
@@ -115,5 +114,4 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         }
         return autoAvionicsInterfaceType
     }
-
 }

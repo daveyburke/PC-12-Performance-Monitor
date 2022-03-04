@@ -19,7 +19,7 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
     private val TAG = EConnectAvionicsInterface::class.qualifiedName
     private val ECONNECT_IP = "10.0.9.1"
     private val NETWORK_TIMEOUT_SEC = 1L
-    private val WEBSOCKET_TIMEOUT_SEC = 5L
+    private val WEBSOCKET_TIMEOUT_SEC = 3L
     private val NORMAL_CLOSURE_STATUS = 1000
     private val INT_NAN = -99
     private val responseLock = ReentrantLock()

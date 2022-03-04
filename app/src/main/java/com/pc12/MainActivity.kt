@@ -58,13 +58,12 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         flightDataViewModel.stopNetworkRequests()
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     override fun onResume() {
         super.onResume()
         flightDataViewModel.startNetworkRequests()
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
 
@@ -88,7 +87,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
             val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
             val torqueStr = (if (torque.isNaN() || age > MAXAGE) "---" else torque)
-            val ageStr = if (age > 60) (age / 60).toString() + " min" else "$age sec"
+            val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
 
             var avionicsLabel: String = "Avionics Data"
             if (avionicsInterface != "") avionicsLabel += " - $avionicsInterface"
@@ -288,7 +287,7 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
             text = {
                 Column {
                     Text(
-                        "THIS APP IS FOR DEMO PURPOSES ONLY. It must not be used to set engine " +
+                        "THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine " +
                                 "torque. Always refer to the manufacturer's QRH or AFM for " +
                                 "authoritative engine settings.\n\n" +
                                 "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +

@@ -89,9 +89,11 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
             val torqueStr = (if (torque.isNaN() || age > MAXAGE) "---" else torque)
             val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
 
-            var avionicsLabel: String = "Avionics Data"
-            if (avionicsInterface != "") avionicsLabel += " - $avionicsInterface"
-            if (!torque.isNaN() && age > 0) avionicsLabel += " ($ageStr old)"
+            var avionicsLabel = "Avionics Data"
+            if (avionicsInterface != "") {
+                avionicsLabel += " - $avionicsInterface"
+                if (age > 0) avionicsLabel += " ($ageStr old)"
+            }
 
             OutlinedTextField(
                 value = "Altitude: $altitude ft\nSAT: $outsideTemp \u2103",

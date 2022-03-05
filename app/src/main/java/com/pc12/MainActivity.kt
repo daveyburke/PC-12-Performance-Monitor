@@ -83,20 +83,23 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            val MAXAGE = 60  // 1 min
-            val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
-            val statusColor = if (age > MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
-            val torqueStr = (if (torque.isNaN() || age > MAXAGE) "---" else torque)
-            val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
+            val TORQUE_MAXAGE = 60  // 1 min
 
+            val altitudeStr = if (avionicsInterface == "") "---" else altitude
+            val outsideTempStr = if (avionicsInterface == "") "---" else outsideTemp
+            val torqueStr = (if (torque.isNaN() || age > TORQUE_MAXAGE) "---" else torque)
+            val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
             var avionicsLabel = "Avionics Data"
             if (avionicsInterface != "") {
                 avionicsLabel += " - $avionicsInterface"
                 if (age > 0) avionicsLabel += " ($ageStr old)"
             }
+            
+            val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
+            val statusColor = if (age > TORQUE_MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
 
             OutlinedTextField(
-                value = "Altitude: $altitude ft\nSAT: $outsideTemp \u2103",
+                value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103",
                 onValueChange = { },
                 label = { Text(avionicsLabel) },
                 enabled = false,

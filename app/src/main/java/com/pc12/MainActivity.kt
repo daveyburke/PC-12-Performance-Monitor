@@ -84,10 +84,14 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
     ) {
         Column {
             val TORQUE_MAXAGE = 60  // 1 min
+            val deltaIsaTemp = outsideTemp - (15 - (altitude + 500) / 1000 * 2)
 
             val altitudeStr = if (avionicsInterface == "") "---" else altitude
             val outsideTempStr = if (avionicsInterface == "") "---" else outsideTemp
+            val deltaIsaTempStr = if (avionicsInterface == "") "---" else
+                if (deltaIsaTemp > 0) "+$deltaIsaTemp" else "$deltaIsaTemp"
             val torqueStr = (if (torque.isNaN() || age > TORQUE_MAXAGE) "---" else torque)
+
             val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
             var avionicsLabel = "Avionics Data"
             if (avionicsInterface != "") {
@@ -99,7 +103,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
             val statusColor = if (age > TORQUE_MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
 
             OutlinedTextField(
-                value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103",
+                value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103\n\u0394 ISA: $deltaIsaTempStr \u2103 ",
                 onValueChange = { },
                 label = { Text(avionicsLabel) },
                 enabled = false,

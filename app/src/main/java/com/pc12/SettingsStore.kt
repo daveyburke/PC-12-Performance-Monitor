@@ -17,6 +17,7 @@ class SettingsStore(private val context: Context) {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
         val AIRCRAFT_TYPE = intPreferencesKey("aircraft_type")
         val AVIONICS_INTERFACE = intPreferencesKey("avionics_interface")
+        val AIRCRAFT_WEIGHT= intPreferencesKey("aircraft_weight")
 
         val PC_12_47E_MSN_1451_1942_4_Blade: Int = 0
         val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
@@ -25,6 +26,12 @@ class SettingsStore(private val context: Context) {
         val ECONNECT_INTERFACE: Int = 0
         val GOGO_INTERFACE: Int = 1
         val AUTO_DETECT_INTERFACE: Int = 2
+
+        val WEIGHT_7000: Int = 0
+        val WEIGHT_8000: Int = 1
+        val WEIGHT_9000: Int = 2
+        val WEIGHT_10000: Int = 3
+        val WEIGHT_10400: Int = 4
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {
@@ -39,6 +46,16 @@ class SettingsStore(private val context: Context) {
                 ECONNECT_INTERFACE -> "eConnect"
                 GOGO_INTERFACE -> "Gogo"
                 AUTO_DETECT_INTERFACE -> "Auto-detect"
+                else -> "Unknown"
+            }
+        }
+        fun aircraftWeightToString(type : Int) : String {
+            return when (type) {
+                WEIGHT_7000 -> "7000 lbs"
+                WEIGHT_8000 -> "8000 lbs"
+                WEIGHT_9000 -> "9000 lbs"
+                WEIGHT_10000 -> "10000 lbs"
+                WEIGHT_10400 -> "10400 lbs"
                 else -> "Unknown"
             }
         }
@@ -63,6 +80,17 @@ class SettingsStore(private val context: Context) {
     suspend fun saveAvionicsInterface(avionics: Int) {
         context.dataStore.edit { preferences ->
             preferences[AVIONICS_INTERFACE] = avionics
+        }
+    }
+
+    val aircraftWeightFlow: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[AIRCRAFT_WEIGHT] ?: WEIGHT_9000
+        }
+
+    suspend fun saveAircraftWeight(weight: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[AIRCRAFT_WEIGHT] = weight
         }
     }
 }

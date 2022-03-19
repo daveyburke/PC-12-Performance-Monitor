@@ -14,7 +14,7 @@ import java.time.Instant.now
 
 data class UIState (
     val avionicsData: AvionicsData = AvionicsData(0, 0),
-    val perfData: PerfData = PerfData(NaN),
+    val perfData: PerfData = PerfData(NaN, 0, 0),
     val avionicsInterface: String = "",
     val age: Long = 0
 )
@@ -28,7 +28,8 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
     private var autoAvionicsInterfaceType = SettingsStore.ECONNECT_INTERFACE
-    private var lastRequestSuccessful = true
+    private var lastRequestSuccessful = false
+    private var lastSuccessTime: Long = 0
 
     var uiState by mutableStateOf(UIState())
         private set
@@ -59,7 +60,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
-            var lastSuccessTime: Long = now().epochSecond
             while (isActive) {
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
@@ -80,10 +80,11 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                 if (data != null) {
                     val aircraftType = settingsStore.aircraftTypeFlow.first()
+                    val weight = settingsStore.aircraftWeightFlow.first()
                     Log.i(TAG, "Calculating torque for: " + data.altitude + " ft, " + data.outsideTemp + " celsius " +
                             "with aircraft type " + SettingsStore.aircraftTypeToString(aircraftType))
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
-                    val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData)
+                    val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData, weight)
 
                     uiState = uiState.copy(
                         avionicsData = newAvionicsData,

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.pc12.ui.theme.Cyan
 import com.pc12.ui.theme.PC12PerformanceMonitorTheme
 import kotlinx.coroutines.launch
+import java.time.Instant.now
 
 class MainActivity : ComponentActivity() {
     private val flightDataViewModel by viewModels<FlightDataViewModel>()
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         flightDataViewModel.startNetworkRequests()
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
 
@@ -72,12 +73,15 @@ fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
     PerformanceDataDisplay(flightDataViewModel.uiState.avionicsData.altitude,
                            flightDataViewModel.uiState.avionicsData.outsideTemp,
                            flightDataViewModel.uiState.perfData.torque,
+                           flightDataViewModel.uiState.perfData.fuelFlow,
+                           flightDataViewModel.uiState.perfData.airSpeed,
                            flightDataViewModel.uiState.avionicsInterface,
                            flightDataViewModel.uiState.age)
 }
 
 @Composable
-fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avionicsInterface: String, age: Long) {
+fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelFlow: Int,
+                           airspeed: Int, avionicsInterface: String, age: Long) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -88,9 +92,15 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
 
             val altitudeStr = if (avionicsInterface == "") "---" else altitude
             val outsideTempStr = if (avionicsInterface == "") "---" else outsideTemp
-            val deltaIsaTempStr = if (avionicsInterface == "") "---" else
-                if (deltaIsaTemp > 0) "+$deltaIsaTemp" else "$deltaIsaTemp"
-            val torqueStr = (if (torque.isNaN() || age > TORQUE_MAXAGE) "---" else torque)
+            val deltaIsaTempStr = when {
+                avionicsInterface == "" -> ""
+                deltaIsaTemp > 0 -> "(ISA +$deltaIsaTemp)"
+                deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
+                else -> ""
+            }
+            val torqueStr = if (torque.isNaN() || age > TORQUE_MAXAGE) "---" else torque
+            val fuelFlowStr = if (torque.isNaN() || age > TORQUE_MAXAGE || fuelFlow == 0) "---" else fuelFlow
+            val airspeedStr = if (torque.isNaN() || age > TORQUE_MAXAGE || airspeed == 0) "---" else airspeed
 
             val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
             var avionicsLabel = "Avionics Data"
@@ -98,12 +108,12 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
                 avionicsLabel += " - $avionicsInterface"
                 if (age > 0) avionicsLabel += " ($ageStr old)"
             }
-            
+
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
             val statusColor = if (age > TORQUE_MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
 
             OutlinedTextField(
-                value = "Altitude: $altitudeStr ft\nSAT: $outsideTempStr \u2103\n\u0394 ISA: $deltaIsaTempStr \u2103 ",
+                value = "ALT: $altitudeStr ft\nSAT: $outsideTempStr \u2103 $deltaIsaTempStr",
                 onValueChange = { },
                 label = { Text(avionicsLabel) },
                 enabled = false,
@@ -118,7 +128,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, avion
             Spacer(modifier = Modifier.height(50.dp))
 
             OutlinedTextField(
-                value = "TRQ: $torqueStr psi",
+                value = "TRQ: $torqueStr psi\nFF: $fuelFlowStr lb/h\nTAS: $airspeedStr kts",
                 onValueChange = { },
                 label = {
                     Text("Max Cruise")
@@ -141,13 +151,16 @@ fun OverflowMenu() {
     val scaffoldState = rememberScaffoldState()
     val showAircraftTypeDialog = remember { mutableStateOf(false) }
     val showAvionicsInterfaceDialog = remember { mutableStateOf(false) }
+    val showAircraftWeightDialog = remember { mutableStateOf(false) }
 
     if (showAircraftTypeDialog.value) AircraftTypeSettings {
         showAircraftTypeDialog.value = false
     }
-
     if (showAvionicsInterfaceDialog.value) AvionicsInterfaceSettings {
         showAvionicsInterfaceDialog.value = false
+    }
+    if (showAircraftWeightDialog.value) AircraftWeightSettings {
+        showAircraftWeightDialog.value = false
     }
 
     Scaffold(
@@ -184,6 +197,12 @@ fun OverflowMenu() {
                             expanded.value = false
                         }) {
                             Text(text = "Avionics Interface")
+                        }
+                        DropdownMenuItem(onClick = {
+                            showAircraftWeightDialog.value = true
+                            expanded.value = false
+                        }) {
+                            Text(text = "Aircraft Weight")
                         }
                     }
                 }
@@ -233,6 +252,32 @@ fun AvionicsInterfaceSettings(onClose: () -> Unit) {
         {
             scope.launch {
                 settingsStore.saveAvionicsInterface(it)
+            }
+        },
+        onClose = { onClose() }
+    )
+}
+
+@Composable
+fun AircraftWeightSettings(onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val settingsStore = remember { SettingsStore(context)  }
+    val aircraftWeightFlow = settingsStore.aircraftWeightFlow.collectAsState(
+        initial = SettingsStore.WEIGHT_9000)
+    val optionItems = listOf(
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_7000),
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_8000),
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_9000),
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_10000),
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_10400),
+        )
+
+    SelectOptionsDialog("Aircraft Weight", optionItems, aircraftWeightFlow.value,
+        onSelected =
+        {
+            scope.launch {
+                settingsStore.saveAircraftWeight(it)
             }
         },
         onClose = { onClose() }
@@ -352,6 +397,6 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
 fun DefaultPreview() {
     PC12PerformanceMonitorTheme {
         OverflowMenu()
-        PerformanceDataDisplay(24000, -32, 30.1f, "Gogo", 5)
+        PerformanceDataDisplay(24000, -32, 30.1f, 300, 275,"Gogo", 5)
     }
 }

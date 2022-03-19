@@ -84,7 +84,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     Log.i(TAG, "Calculating torque for: " + data.altitude + " ft, " + data.outsideTemp + " celsius " +
                             "with aircraft type " + SettingsStore.aircraftTypeToString(aircraftType))
                     val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
-                    val newPerfData = PerfCalculator.compute(aircraftType, newAvionicsData, weight)
+                    val newPerfData = PerfCalculator.compute(newAvionicsData, aircraftType, weight)
 
                     uiState = uiState.copy(
                         avionicsData = newAvionicsData,

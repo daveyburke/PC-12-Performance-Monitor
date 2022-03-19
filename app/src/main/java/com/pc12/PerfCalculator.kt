@@ -6,14 +6,14 @@ import java.lang.Float.NaN
 object PerfCalculator {
     private val TAG = PerfCalculator::class.qualifiedName
 
-    fun compute(aircraftType : Int, avionicsData: AvionicsData, weightType: Int) : PerfData {
+    fun compute(avionicsData: AvionicsData, aircraftType: Int, weightType: Int) : PerfData {
         val perfData = PerfData(NaN, 0, 0)
 
         if (avionicsData.altitude in 10000..30000 &&
             avionicsData.outsideTemp in -55..24) {
-            calculateTorque(aircraftType, avionicsData, perfData)
-            calculateFuelFlow(aircraftType, avionicsData, perfData)
-            calculateTrueAirspeed(aircraftType, avionicsData, perfData, weightType)
+            calculateTorque(avionicsData, aircraftType, perfData)
+            calculateFuelFlow(avionicsData, aircraftType, perfData)
+            calculateTrueAirspeed(avionicsData, aircraftType, weightType, perfData)
         } else {
             Log.i(TAG, "Values out of range: " + avionicsData.altitude + " " +
                     avionicsData.outsideTemp)
@@ -22,7 +22,7 @@ object PerfCalculator {
         return perfData
     }
 
-    private fun calculateTorque(aircraftType : Int, avionicsData: AvionicsData, perfData: PerfData) {
+    private fun calculateTorque(avionicsData: AvionicsData, aircraftType: Int, perfData: PerfData) {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> TORQUE_1451_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
@@ -51,7 +51,7 @@ object PerfCalculator {
         }
     }
 
-    private fun calculateFuelFlow(aircraftType : Int, avionicsData: AvionicsData, perfData: PerfData) {
+    private fun calculateFuelFlow(avionicsData: AvionicsData, aircraftType: Int, perfData: PerfData) {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade ->  FUEL_FLOW_1451_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> FUEL_FLOW_1576_1942_5_MAX_CRUISE
@@ -64,7 +64,7 @@ object PerfCalculator {
             avionicsData.outsideTemp, data)
     }
 
-    private fun calculateTrueAirspeed(aircraftType : Int, avionicsData: AvionicsData, perfData: PerfData, weightType: Int) {
+    private fun calculateTrueAirspeed(avionicsData: AvionicsData, aircraftType: Int, weightType: Int, perfData: PerfData) {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> AIRSPEED_1451_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> AIRSPEED_1576_1942_5_MAX_CRUISE

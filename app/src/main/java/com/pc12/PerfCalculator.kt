@@ -15,7 +15,6 @@ object PerfCalculator {
             calculateTorque(aircraftType, avionicsData, perfData)
             calculateFuelFlow(aircraftType, avionicsData, perfData)
             calculateTrueAirspeed(aircraftType, avionicsData, perfData, weightType)
-
         } else {
             Log.i(TAG, "Values out of range: " + avionicsData.altitude + " " +
                         avionicsData.outsideTemp)
@@ -103,16 +102,16 @@ object PerfCalculator {
             val w2 = (isa % 10) / 10.0f
             val w1 = 1.0f - w2
             if (avionicsData.altitude % 2000 != 0) {  // interp over alts and temps
-                perfData.airSpeed = (w1 * (data[i][j][k] + data[i+1][j][k]) / 2 +
+                perfData.airspeed = (w1 * (data[i][j][k] + data[i+1][j][k]) / 2 +
                         w2 * (data[i][j+1][k] + data[i+1][j+1][k]) / 2).toInt()
             } else { // interp over temps only
-                perfData.airSpeed = (w1 * data[i][j][k] + w2 * data[i][j+1][k]).toInt()
+                perfData.airspeed = (w1 * data[i][j][k] + w2 * data[i][j+1][k]).toInt()
             }
         } else {
             if (avionicsData.altitude % 2000 != 0) { // interp over alts only
-                perfData.fuelFlow = (data[i][j][k] + data[i+1][j][k]) / 2
+                perfData.airspeed = (data[i][j][k] + data[i+1][j][k]) / 2
             } else {  // no interp
-                perfData.fuelFlow = data[i][j][k]
+                perfData.airspeed = data[i][j][k]
             }
         }
     }

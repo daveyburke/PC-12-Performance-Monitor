@@ -74,7 +74,7 @@ fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
                            flightDataViewModel.uiState.avionicsData.outsideTemp,
                            flightDataViewModel.uiState.perfData.torque,
                            flightDataViewModel.uiState.perfData.fuelFlow,
-                           flightDataViewModel.uiState.perfData.airSpeed,
+                           flightDataViewModel.uiState.perfData.airspeed,
                            flightDataViewModel.uiState.avionicsInterface,
                            flightDataViewModel.uiState.age)
 }

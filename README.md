@@ -3,7 +3,7 @@
 <b>Warning</b>: THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM
 for authoritative engine settings.
 
-Android app that monitors altitude and outside air temp from avionics to automatically indicate max cruise engine torque for Pilatus PC-12NG / NGX aircraft. Data consistent with eQRH tables (with interpolation). Supports 4-blade and 5-blade aircraft (S/N 1451+; for NGX, assumes 1700 RPM mode). Works with Emteq eConnect Wi-Fi and Gogo Wi-Fi (tested with L3 Avance).  
+Android app that monitors altitude and outside air temp from avionics to automatically indicate max cruise engine torque, fuel flow, and true airspeed for Pilatus PC-12NG / NGX aircraft. Data consistent with eQRH tables and POH (with interpolation). Supports 4-blade and 5-blade aircraft (S/N 1451+; for NGX, assumes 1700 RPM mode). Works with Emteq eConnect Wi-Fi and Gogo Wi-Fi (tested with L3 Avance).  
 <br/>
 <br/>
 
@@ -15,7 +15,7 @@ Android app that monitors altitude and outside air temp from avionics to automat
 </p>
 
 <br/>
-The app has a simple/clean UI. Data refresh is attempted every 5 seconds when the app is open. The age of the received avionics data is shown in seconds/minutes if it is old. The text outline boxes will turn red and TRQ will be displayed as --- if the age of received avionics data is older than 1 min to warn of stale data. The aircraft type and avionics interface can be  configured from the overflow menu and is persisted across app restarts. Auto-detect avionics interface is useful if you switch Wi-Fi networks mid-flight. Supports dark mode for night flying.
+The app has a simple/clean UI. Data refresh is attempted every 5 seconds when the app is open. The age of the received avionics data is shown in seconds/minutes if it is old. The text outline boxes will turn red and data will be displayed as --- if the age of received avionics data is older than 1 min to warn of stale data. The aircraft type, avionics interface, and weight can be configured from the overflow menu and is persisted across app restarts. Auto-detect avionics interface is useful if you switch Wi-Fi networks mid-flight. Supports dark mode for night flying.
 <br/>
 <br/>
 

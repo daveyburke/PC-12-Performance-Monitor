@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import com.pc12.ui.theme.Cyan
 import com.pc12.ui.theme.PC12PerformanceMonitorTheme
 import kotlinx.coroutines.launch
-import java.time.Instant.now
 
 class MainActivity : ComponentActivity() {
     private val flightDataViewModel by viewModels<FlightDataViewModel>()

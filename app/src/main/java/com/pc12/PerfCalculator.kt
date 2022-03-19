@@ -9,15 +9,14 @@ object PerfCalculator {
     fun compute(aircraftType : Int, avionicsData: AvionicsData, weightType: Int) : PerfData {
         val perfData = PerfData(NaN, 0, 0)
 
-        if (avionicsData.altitude >= 10000 && avionicsData.altitude <= 30000 &&
-            avionicsData.outsideTemp >= -55 && avionicsData.outsideTemp <= 24) {
-
+        if (avionicsData.altitude in 10000..30000 &&
+            avionicsData.outsideTemp in -55..24) {
             calculateTorque(aircraftType, avionicsData, perfData)
             calculateFuelFlow(aircraftType, avionicsData, perfData)
             calculateTrueAirspeed(aircraftType, avionicsData, perfData, weightType)
         } else {
             Log.i(TAG, "Values out of range: " + avionicsData.altitude + " " +
-                        avionicsData.outsideTemp)
+                    avionicsData.outsideTemp)
         }
 
         return perfData
@@ -60,27 +59,9 @@ object PerfCalculator {
             else -> FUEL_FLOW_1576_1942_5_MAX_CRUISE
         }
 
-        val i = ((avionicsData.altitude + 500) / 2000f).toInt() - 5  // 0 index corresponds to 10000
-        val isa = avionicsData.outsideTemp + (avionicsData.altitude + 500) / 1000 * 2 - 15
-        val j = isa / 10 + 4  // 0 index corresponds to -40
-
         // Table is sparse: interpolate over altitude and ISA temp
-        if (isa < 30) {
-            val w2 = (isa % 10) / 10.0f
-            val w1 = 1.0f - w2
-            if (avionicsData.altitude % 2000 != 0) {  // interp over alts and temps
-                perfData.fuelFlow = (w1 * (data[i][j] + data[i+1][j]) / 2 +
-                                     w2 * (data[i][j+1] + data[i+1][j+1]) / 2).toInt()
-            } else { // interp over temps only
-                perfData.fuelFlow = (w1 * data[i][j] + w2 * data[i][j+1]).toInt()
-            }
-        } else {
-            if (avionicsData.altitude % 2000 != 0) { // interp over alts only
-                perfData.fuelFlow = (data[i][j] + data[i+1][j]) / 2
-            } else {  // no interp
-                perfData.fuelFlow = data[i][j]
-            }
-        }
+        perfData.fuelFlow = interpolateOverAltitudeAndTemp(avionicsData.altitude,
+            avionicsData.outsideTemp, data)
     }
 
     private fun calculateTrueAirspeed(aircraftType : Int, avionicsData: AvionicsData, perfData: PerfData, weightType: Int) {
@@ -91,29 +72,47 @@ object PerfCalculator {
             else -> AIRSPEED_1576_1942_5_MAX_CRUISE
         }
 
-        val isa = avionicsData.outsideTemp + (avionicsData.altitude + 500) / 1000 * 2 - 15
-        val i = ((avionicsData.altitude + 500) / 2000f).toInt() - 5  // 0 index corresponds to 10000
-        val j = isa / 10 + 4  // 0 index corresponds to -40
-        val k = weightType
+        // Table is sparse: interpolate over altitude and ISA temp. We could interpolate
+        // over weight, but that's a manually entered, changing value so would need the
+        // pilot to continually update during flight to be useful.
+        perfData.airspeed = interpolateOverAltitudeAndTemp(avionicsData.altitude,
+            avionicsData.outsideTemp, reshape(data, weightType) )
+    }
 
-        // Table is sparse: interpolate over altitude and ISA temp
-        // We could interpolate weight but not something typically tracked accurately over flight
+    private fun interpolateOverAltitudeAndTemp(altitude: Int, outsideTemp: Int, data: Array<Array<Int>>) : Int {
+        val out: Int
+        val i = ((altitude + 500) / 2000f).toInt() - 5  // 0 index corresponds to 10000
+        val isa = outsideTemp + (altitude + 500) / 1000 * 2 - 15
+        val j = isa / 10 + 4  // 0 index corresponds to -40
+
         if (isa < 30) {
             val w2 = (isa % 10) / 10.0f
             val w1 = 1.0f - w2
-            if (avionicsData.altitude % 2000 != 0) {  // interp over alts and temps
-                perfData.airspeed = (w1 * (data[i][j][k] + data[i+1][j][k]) / 2 +
-                        w2 * (data[i][j+1][k] + data[i+1][j+1][k]) / 2).toInt()
+            out = if (altitude % 2000 != 0) {  // interp over alts and temps
+                (w1 * (data[i][j] + data[i+1][j]) / 2 +
+                        w2 * (data[i][j+1] + data[i+1][j+1]) / 2).toInt()
             } else { // interp over temps only
-                perfData.airspeed = (w1 * data[i][j][k] + w2 * data[i][j+1][k]).toInt()
+                (w1 * data[i][j] + w2 * data[i][j+1]).toInt()
             }
         } else {
-            if (avionicsData.altitude % 2000 != 0) { // interp over alts only
-                perfData.airspeed = (data[i][j][k] + data[i+1][j][k]) / 2
+            out = if (altitude % 2000 != 0) { // interp over alts only
+                (data[i][j] + data[i+1][j]) / 2
             } else {  // no interp
-                perfData.airspeed = data[i][j][k]
+                data[i][j]
             }
         }
+
+        return out
+    }
+
+    private fun reshape(input: Array<Array<Array<Int>>>, k: Int) : Array<Array<Int>> {
+        val out = Array(input.size) { Array(input[0].size) { 0 } }
+        for(i: Int in input.indices) {
+            for(j : Int in 0 until input[i].size) {
+                out[i][j] = input[i][j][k]
+            }
+        }
+        return out
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,82 +120,82 @@ object PerfCalculator {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Temperature index (celsius)
-    val SAT_TEMP_INDEX = arrayOf(-55,-53,-51,-49,-47,-45,-43,-41,-39,-37,-35,-33,-31,-29,-27,-25,-23,-21,-20,-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,10,12,14,16,18,20,22,24)
+    private val SAT_TEMP_INDEX = arrayOf(-55,-53,-51,-49,-47,-45,-43,-41,-39,-37,-35,-33,-31,-29,-27,-25,-23,-21,-20,-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,10,12,14,16,18,20,22,24)
 
     // Format: pressure altitude [10000:1000:30000] x static air temp [SAT_TEMP_INDEX]. Values are PSI
     // Consistent with eQRH v1.3.2
-    val TORQUE_1451_1942_4_MAX_CRUISE = arrayOf(
-        arrayOf(NaN,NaN,NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.8f,36.8f,36.3f,35.2f,34.0f,32.9f,31.7f),
-        arrayOf(NaN,NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.8f,36.7f,36.6f,36.5f,36.4f,36.2f,35.7f,34.6f,33.5f,32.4f,31.2f,NaN),
-        arrayOf(NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.5f,36.4f,36.2f,36.1f,36.0f,35.7f,35.1f,34.0f,32.9f,31.8f,30.7f,NaN,NaN),
-        arrayOf(NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.7f,36.5f,36.3f,36.1f,35.9f,35.7f,35.5f,35.3f,35.1f,34.5f,33.4f,32.3f,31.3f,30.2f,NaN,NaN,NaN),
-        arrayOf(NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.7f,36.4f,36.2f,35.9f,35.6f,35.4f,35.1f,34.8f,34.6f,34.3f,33.8f,32.8f,31.7f,30.7f,29.6f,NaN,NaN,NaN,NaN),
-        arrayOf(NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.8f,36.8f,36.7f,36.7f,36.7f,36.7f,36.6f,36.4f,36.1f,35.8f,35.4f,35.1f,34.8f,34.5f,34.1f,33.8f,33.5f,33.0f,32.5f,32.0f,31.0f,30.0f,29.0f,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.8f,36.7f,36.6f,36.6f,36.5f,36.5f,36.4f,36.4f,36.1f,35.7f,35.3f,35.0f,34.6f,34.2f,33.8f,33.5f,33.1f,32.7f,32.2f,31.8f,31.3f,30.8f,30.3f,29.3f,28.4f,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.5f,36.4f,36.2f,36.1f,35.9f,35.8f,35.6f,35.5f,35.2f,34.8f,34.5f,34.1f,33.7f,33.4f,33.0f,32.6f,32.2f,31.9f,31.4f,31.0f,30.5f,30.0f,29.6f,29.1f,28.6f,27.7f,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.7f,36.5f,36.3f,36.0f,35.8f,35.6f,35.3f,35.1f,34.9f,34.6f,34.3f,33.9f,33.6f,33.2f,32.9f,32.5f,32.1f,31.8f,31.4f,31.0f,30.6f,30.2f,29.7f,29.3f,28.8f,28.3f,27.9f,27.4f,27.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.6f,36.5f,36.4f,36.3f,36.2f,35.8f,35.5f,35.3f,35.0f,34.8f,34.5f,34.3f,34.0f,33.7f,33.4f,33.1f,32.7f,32.4f,32.0f,31.7f,31.3f,31.0f,30.6f,30.3f,29.8f,29.4f,29.0f,28.5f,28.1f,27.7f,27.2f,26.8f,26.3f,25.9f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.3f,36.1f,35.9f,35.7f,35.5f,35.1f,34.5f,34.2f,34.0f,33.7f,33.4f,33.1f,32.9f,32.6f,32.2f,31.9f,31.5f,31.2f,30.8f,30.5f,30.2f,29.8f,29.5f,29.1f,28.7f,28.2f,27.8f,27.4f,27.0f,26.5f,26.1f,25.7f,25.3f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(35.7f,35.8f,35.9f,35.9f,36.0f,36.0f,36.0f,36.0f,36.0f,36.0f,35.8f,35.5f,35.2f,34.9f,34.6f,34.1f,33.5f,33.0f,32.8f,32.5f,32.2f,32.0f,31.7f,31.3f,31.0f,30.7f,30.4f,30.0f,29.7f,29.4f,29.1f,28.7f,28.4f,27.9f,27.5f,27.1f,26.7f,26.3f,25.9f,25.4f,25.0f,24.6f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(35.1f,35.3f,35.4f,35.5f,35.6f,35.6f,35.6f,35.6f,35.6f,35.2f,34.8f,34.4f,34.0f,33.6f,33.1f,32.6f,32.1f,31.6f,31.3f,31.1f,30.8f,30.5f,30.2f,29.9f,29.6f,29.2f,28.9f,28.6f,28.3f,28.0f,27.6f,27.2f,26.8f,26.4f,26.0f,25.6f,25.2f,24.8f,24.4f,24.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(34.1f,34.3f,34.4f,34.5f,34.5f,34.6f,34.6f,34.6f,34.3f,33.9f,33.4f,33.0f,32.6f,32.1f,31.6f,31.2f,30.7f,30.2f,30.0f,29.7f,29.4f,29.1f,28.8f,28.5f,28.2f,27.9f,27.6f,27.3f,26.9f,26.5f,26.1f,25.7f,25.3f,24.9f,24.5f,24.1f,23.7f,23.3f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(33.2f,33.4f,33.4f,33.5f,33.6f,33.6f,33.7f,33.4f,32.9f,32.5f,32.0f,31.6f,31.1f,30.7f,30.2f,29.8f,29.4f,28.8f,28.5f,28.2f,28.0f,27.7f,27.4f,27.1f,26.8f,26.5f,26.2f,25.8f,25.4f,25.0f,24.6f,24.2f,23.8f,23.5f,23.1f,22.7f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(32.2f,32.3f,32.4f,32.5f,32.5f,32.6f,32.3f,31.9f,31.4f,31.0f,30.6f,30.1f,29.7f,29.3f,28.8f,28.4f,27.9f,27.3f,27.1f,26.8f,26.5f,26.2f,26.0f,25.7f,25.4f,25.0f,24.6f,24.2f,23.8f,23.5f,23.1f,22.7f,22.3f,21.9f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(31.2f,31.3f,31.4f,31.4f,31.5f,31.2f,30.8f,30.4f,30.0f,29.5f,29.1f,28.7f,28.3f,27.9f,27.4f,26.9f,26.4f,25.9f,25.6f,25.4f,25.1f,24.8f,24.5f,24.1f,23.8f,23.4f,23.0f,22.7f,22.3f,21.9f,21.6f,21.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(30.1f,30.2f,30.3f,30.5f,30.2f,29.8f,29.3f,28.9f,28.5f,28.1f,27.7f,27.3f,26.9f,26.4f,26.0f,25.5f,25.0f,24.4f,24.2f,23.9f,23.6f,23.3f,22.9f,22.6f,22.2f,21.9f,21.5f,21.2f,20.8f,20.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(29.1f,29.2f,29.4f,29.1f,28.7f,28.3f,27.9f,27.5f,27.1f,26.7f,26.3f,25.9f,25.5f,25.0f,24.5f,24.0f,23.5f,23.1f,22.8f,22.4f,22.1f,21.7f,21.4f,21.1f,20.7f,20.4f,20.0f,19.7f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(28.1f,28.3f,28.1f,27.7f,27.3f,26.9f,26.5f,26.1f,25.7f,25.3f,24.9f,24.5f,24.1f,23.6f,23.2f,22.7f,22.2f,21.6f,21.3f,21.0f,20.7f,20.3f,20.0f,19.7f,19.3f,19.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(27.3f,27.0f,26.7f,26.3f,25.9f,25.5f,25.1f,24.7f,24.3f,24.0f,23.6f,23.1f,22.7f,22.3f,21.9f,21.4f,20.8f,20.2f,19.9f,19.6f,19.3f,19.0f,18.6f,18.3f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN))
+    private val TORQUE_1451_1942_4_MAX_CRUISE = arrayOf(
+        arrayOf(NaN, NaN, NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.8f, 36.8f, 36.3f, 35.2f, 34.0f, 32.9f, 31.7f),
+        arrayOf(NaN, NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.8f, 36.7f, 36.6f, 36.5f, 36.4f, 36.2f, 35.7f, 34.6f, 33.5f, 32.4f, 31.2f, NaN),
+        arrayOf(NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.5f, 36.4f, 36.2f, 36.1f, 36.0f, 35.7f, 35.1f, 34.0f, 32.9f, 31.8f, 30.7f, NaN, NaN),
+        arrayOf(NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.7f, 36.5f, 36.3f, 36.1f, 35.9f, 35.7f, 35.5f, 35.3f, 35.1f, 34.5f, 33.4f, 32.3f, 31.3f, 30.2f, NaN, NaN, NaN),
+        arrayOf(NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.7f, 36.4f, 36.2f, 35.9f, 35.6f, 35.4f, 35.1f, 34.8f, 34.6f, 34.3f, 33.8f, 32.8f, 31.7f, 30.7f, 29.6f, NaN, NaN, NaN, NaN),
+        arrayOf(NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.8f, 36.8f, 36.7f, 36.7f, 36.7f, 36.7f, 36.6f, 36.4f, 36.1f, 35.8f, 35.4f, 35.1f, 34.8f, 34.5f, 34.1f, 33.8f, 33.5f, 33.0f, 32.5f, 32.0f, 31.0f, 30.0f, 29.0f, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.8f, 36.7f, 36.6f, 36.6f, 36.5f, 36.5f, 36.4f, 36.4f, 36.1f, 35.7f, 35.3f, 35.0f, 34.6f, 34.2f, 33.8f, 33.5f, 33.1f, 32.7f, 32.2f, 31.8f, 31.3f, 30.8f, 30.3f, 29.3f, 28.4f, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.5f, 36.4f, 36.2f, 36.1f, 35.9f, 35.8f, 35.6f, 35.5f, 35.2f, 34.8f, 34.5f, 34.1f, 33.7f, 33.4f, 33.0f, 32.6f, 32.2f, 31.9f, 31.4f, 31.0f, 30.5f, 30.0f, 29.6f, 29.1f, 28.6f, 27.7f, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.7f, 36.5f, 36.3f, 36.0f, 35.8f, 35.6f, 35.3f, 35.1f, 34.9f, 34.6f, 34.3f, 33.9f, 33.6f, 33.2f, 32.9f, 32.5f, 32.1f, 31.8f, 31.4f, 31.0f, 30.6f, 30.2f, 29.7f, 29.3f, 28.8f, 28.3f, 27.9f, 27.4f, 27.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.6f, 36.5f, 36.4f, 36.3f, 36.2f, 35.8f, 35.5f, 35.3f, 35.0f, 34.8f, 34.5f, 34.3f, 34.0f, 33.7f, 33.4f, 33.1f, 32.7f, 32.4f, 32.0f, 31.7f, 31.3f, 31.0f, 30.6f, 30.3f, 29.8f, 29.4f, 29.0f, 28.5f, 28.1f, 27.7f, 27.2f, 26.8f, 26.3f, 25.9f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.3f, 36.1f, 35.9f, 35.7f, 35.5f, 35.1f, 34.5f, 34.2f, 34.0f, 33.7f, 33.4f, 33.1f, 32.9f, 32.6f, 32.2f, 31.9f, 31.5f, 31.2f, 30.8f, 30.5f, 30.2f, 29.8f, 29.5f, 29.1f, 28.7f, 28.2f, 27.8f, 27.4f, 27.0f, 26.5f, 26.1f, 25.7f, 25.3f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(35.7f, 35.8f, 35.9f, 35.9f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 35.8f, 35.5f, 35.2f, 34.9f, 34.6f, 34.1f, 33.5f, 33.0f, 32.8f, 32.5f, 32.2f, 32.0f, 31.7f, 31.3f, 31.0f, 30.7f, 30.4f, 30.0f, 29.7f, 29.4f, 29.1f, 28.7f, 28.4f, 27.9f, 27.5f, 27.1f, 26.7f, 26.3f, 25.9f, 25.4f, 25.0f, 24.6f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(35.1f, 35.3f, 35.4f, 35.5f, 35.6f, 35.6f, 35.6f, 35.6f, 35.6f, 35.2f, 34.8f, 34.4f, 34.0f, 33.6f, 33.1f, 32.6f, 32.1f, 31.6f, 31.3f, 31.1f, 30.8f, 30.5f, 30.2f, 29.9f, 29.6f, 29.2f, 28.9f, 28.6f, 28.3f, 28.0f, 27.6f, 27.2f, 26.8f, 26.4f, 26.0f, 25.6f, 25.2f, 24.8f, 24.4f, 24.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(34.1f, 34.3f, 34.4f, 34.5f, 34.5f, 34.6f, 34.6f, 34.6f, 34.3f, 33.9f, 33.4f, 33.0f, 32.6f, 32.1f, 31.6f, 31.2f, 30.7f, 30.2f, 30.0f, 29.7f, 29.4f, 29.1f, 28.8f, 28.5f, 28.2f, 27.9f, 27.6f, 27.3f, 26.9f, 26.5f, 26.1f, 25.7f, 25.3f, 24.9f, 24.5f, 24.1f, 23.7f, 23.3f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(33.2f, 33.4f, 33.4f, 33.5f, 33.6f, 33.6f, 33.7f, 33.4f, 32.9f, 32.5f, 32.0f, 31.6f, 31.1f, 30.7f, 30.2f, 29.8f, 29.4f, 28.8f, 28.5f, 28.2f, 28.0f, 27.7f, 27.4f, 27.1f, 26.8f, 26.5f, 26.2f, 25.8f, 25.4f, 25.0f, 24.6f, 24.2f, 23.8f, 23.5f, 23.1f, 22.7f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(32.2f, 32.3f, 32.4f, 32.5f, 32.5f, 32.6f, 32.3f, 31.9f, 31.4f, 31.0f, 30.6f, 30.1f, 29.7f, 29.3f, 28.8f, 28.4f, 27.9f, 27.3f, 27.1f, 26.8f, 26.5f, 26.2f, 26.0f, 25.7f, 25.4f, 25.0f, 24.6f, 24.2f, 23.8f, 23.5f, 23.1f, 22.7f, 22.3f, 21.9f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(31.2f, 31.3f, 31.4f, 31.4f, 31.5f, 31.2f, 30.8f, 30.4f, 30.0f, 29.5f, 29.1f, 28.7f, 28.3f, 27.9f, 27.4f, 26.9f, 26.4f, 25.9f, 25.6f, 25.4f, 25.1f, 24.8f, 24.5f, 24.1f, 23.8f, 23.4f, 23.0f, 22.7f, 22.3f, 21.9f, 21.6f, 21.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(30.1f, 30.2f, 30.3f, 30.5f, 30.2f, 29.8f, 29.3f, 28.9f, 28.5f, 28.1f, 27.7f, 27.3f, 26.9f, 26.4f, 26.0f, 25.5f, 25.0f, 24.4f, 24.2f, 23.9f, 23.6f, 23.3f, 22.9f, 22.6f, 22.2f, 21.9f, 21.5f, 21.2f, 20.8f, 20.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(29.1f, 29.2f, 29.4f, 29.1f, 28.7f, 28.3f, 27.9f, 27.5f, 27.1f, 26.7f, 26.3f, 25.9f, 25.5f, 25.0f, 24.5f, 24.0f, 23.5f, 23.1f, 22.8f, 22.4f, 22.1f, 21.7f, 21.4f, 21.1f, 20.7f, 20.4f, 20.0f, 19.7f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(28.1f, 28.3f, 28.1f, 27.7f, 27.3f, 26.9f, 26.5f, 26.1f, 25.7f, 25.3f, 24.9f, 24.5f, 24.1f, 23.6f, 23.2f, 22.7f, 22.2f, 21.6f, 21.3f, 21.0f, 20.7f, 20.3f, 20.0f, 19.7f, 19.3f, 19.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(27.3f, 27.0f, 26.7f, 26.3f, 25.9f, 25.5f, 25.1f, 24.7f, 24.3f, 24.0f, 23.6f, 23.1f, 22.7f, 22.3f, 21.9f, 21.4f, 20.8f, 20.2f, 19.9f, 19.6f, 19.3f, 19.0f, 18.6f, 18.3f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN))
 
-    val TORQUE_DATA_1576_1942_5_MAX_CRUISE = arrayOf(
-        arrayOf(NaN,NaN,NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.5f,35.4f,34.4f,33.3f,32.2f),
-        arrayOf(NaN,NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.8f,36.8f,36.7f,36.6f,36.1f,35.0f,34.0f,32.9f,31.8f,NaN),
-        arrayOf(NaN,NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.6f,36.6f,36.5f,36.4f,36.3f,35.7f,34.6f,33.5f,32.4f,31.3f,NaN,NaN),
-        arrayOf(NaN,NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.5f,36.4f,36.3f,36.1f,36.0f,35.8f,35.7f,35.1f,34.0f,32.9f,31.8f,30.7f,NaN,NaN,NaN),
-        arrayOf(NaN,NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.6f,36.3f,36.1f,35.9f,35.7f,35.5f,35.3f,35.1f,34.9f,34.4f,33.4f,32.3f,31.2f,30.2f,NaN,NaN,NaN,NaN),
-        arrayOf(NaN,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.7f,36.4f,36.1f,35.8f,35.5f,35.2f,34.9f,34.6f,34.4f,34.1f,33.6f,33.1f,32.6f,31.6f,30.6f,29.5f,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.6f,36.3f,35.9f,35.5f,35.1f,34.7f,34.4f,34.0f,33.6f,33.2f,32.9f,32.4f,31.9f,31.4f,30.9f,29.9f,28.9f,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.6f,36.5f,36.5f,36.4f,36.3f,36.1f,36.0f,35.8f,35.4f,35.0f,34.6f,34.3f,33.9f,33.5f,33.2f,32.8f,32.4f,32.0f,31.5f,31.1f,30.6f,30.1f,29.6f,29.2f,28.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.9f,36.8f,36.7f,36.5f,36.3f,36.1f,36.0f,35.8f,35.6f,35.5f,35.3f,34.9f,34.5f,34.2f,33.8f,33.4f,33.0f,32.7f,32.3f,31.9f,31.6f,31.1f,30.7f,30.2f,29.7f,29.4f,28.9f,28.4f,28.0f,27.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.7f,36.6f,36.6f,36.6f,36.2f,36.0f,35.8f,35.5f,35.3f,35.1f,34.9f,34.6f,34.4f,34.1f,33.7f,33.3f,32.9f,32.6f,32.2f,31.9f,31.5f,31.1f,30.8f,30.4f,29.9f,29.5f,29.0f,28.5f,28.1f,27.7f,27.3f,26.8f,26.4f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.5f,36.4f,36.4f,36.3f,36.3f,36.2f,35.8f,35.2f,34.9f,34.6f,34.4f,34.1f,33.8f,33.5f,33.2f,32.9f,32.5f,32.2f,31.7f,31.4f,31.0f,30.7f,30.3f,30.0f,29.6f,29.1f,28.7f,28.3f,27.8f,27.4f,26.9f,26.5f,26.2f,25.7f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(35.9f,36.0f,36.0f,36.0f,36.0f,36.0f,36.0f,36.0f,36.0f,36.0f,35.9f,35.7f,35.6f,35.4f,35.2f,34.8f,34.2f,33.7f,33.4f,33.2f,32.9f,32.6f,32.3f,32.0f,31.6f,31.3f,31.0f,30.6f,30.2f,29.9f,29.6f,29.2f,28.9f,28.4f,28.0f,27.6f,27.1f,26.7f,26.3f,25.8f,25.4f,25.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(35.5f,35.5f,35.5f,35.6f,35.6f,35.6f,35.6f,35.6f,35.6f,35.3f,35.1f,34.8f,34.5f,34.2f,33.8f,33.2f,32.7f,32.2f,32.0f,31.7f,31.4f,31.1f,30.8f,30.5f,30.1f,29.8f,29.5f,29.2f,28.8f,28.5f,28.1f,27.7f,27.3f,26.8f,26.4f,26.0f,25.6f,25.1f,24.7f,24.3f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(34.2f,34.3f,34.3f,34.4f,34.5f,34.6f,34.7f,34.8f,34.6f,34.2f,33.9f,33.6f,33.2f,32.8f,32.3f,31.8f,31.3f,30.8f,30.5f,30.2f,29.9f,29.6f,29.3f,29.0f,28.7f,28.4f,28.1f,27.8f,27.3f,26.9f,26.5f,26.1f,25.7f,25.3f,24.9f,24.4f,24.0f,23.6f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(33.0f,33.0f,33.2f,33.4f,33.6f,33.8f,34.0f,33.8f,33.4f,33.0f,32.6f,32.2f,31.8f,31.3f,30.9f,30.4f,29.9f,29.4f,29.1f,28.8f,28.5f,28.2f,27.9f,27.6f,27.3f,27.0f,26.7f,26.3f,25.7f,25.3f,24.9f,24.5f,24.1f,23.7f,23.3f,22.9f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(31.9f,32.1f,32.3f,32.4f,32.6f,32.8f,32.5f,32.2f,31.9f,31.5f,31.2f,30.8f,30.3f,29.9f,29.4f,29.0f,28.4f,27.9f,27.6f,27.3f,27.0f,26.7f,26.4f,26.1f,25.8f,25.4f,25.0f,24.7f,24.1f,23.7f,23.4f,23.0f,22.6f,22.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(31.0f,31.1f,31.2f,31.4f,31.5f,31.3f,31.0f,30.7f,30.4f,30.1f,29.7f,29.3f,28.9f,28.4f,28.0f,27.5f,26.9f,26.4f,26.1f,25.8f,25.6f,25.3f,25.0f,24.6f,24.2f,23.9f,23.5f,23.1f,22.6f,22.2f,21.8f,21.4f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(30.0f,30.1f,30.3f,30.5f,30.3f,30.0f,29.7f,29.4f,29.1f,28.7f,28.3f,27.8f,27.4f,27.0f,26.5f,26.0f,25.4f,24.9f,24.7f,24.4f,24.1f,23.7f,23.4f,23.0f,22.7f,22.3f,21.9f,21.6f,21.0f,20.6f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(29.1f,29.2f,29.4f,29.2f,28.9f,28.6f,28.3f,28.0f,27.6f,27.2f,26.8f,26.4f,26.0f,25.5f,25.0f,24.5f,24.0f,23.5f,23.2f,22.9f,22.5f,22.2f,21.8f,21.5f,21.1f,20.8f,20.4f,20.1f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(28.2f,28.4f,28.2f,27.9f,27.6f,27.3f,27.0f,26.6f,26.2f,25.8f,25.4f,25.0f,24.5f,24.1f,23.6f,23.1f,22.7f,22.1f,21.7f,21.4f,21.0f,20.7f,20.4f,20.0f,19.7f,19.4f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(27.3f,27.1f,26.9f,26.6f,26.3f,26.0f,25.6f,25.2f,24.8f,24.4f,24.0f,23.6f,23.1f,22.7f,22.3f,21.8f,21.2f,20.6f,20.3f,19.9f,19.6f,19.3f,19.0f,18.7f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN))
+    private val TORQUE_DATA_1576_1942_5_MAX_CRUISE = arrayOf(
+        arrayOf(NaN, NaN, NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.5f, 35.4f, 34.4f, 33.3f, 32.2f),
+        arrayOf(NaN, NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.8f, 36.8f, 36.7f, 36.6f, 36.1f, 35.0f, 34.0f, 32.9f, 31.8f, NaN),
+        arrayOf(NaN, NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.6f, 36.6f, 36.5f, 36.4f, 36.3f, 35.7f, 34.6f, 33.5f, 32.4f, 31.3f, NaN, NaN),
+        arrayOf(NaN, NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.5f, 36.4f, 36.3f, 36.1f, 36.0f, 35.8f, 35.7f, 35.1f, 34.0f, 32.9f, 31.8f, 30.7f, NaN, NaN, NaN),
+        arrayOf(NaN, NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.6f, 36.3f, 36.1f, 35.9f, 35.7f, 35.5f, 35.3f, 35.1f, 34.9f, 34.4f, 33.4f, 32.3f, 31.2f, 30.2f, NaN, NaN, NaN, NaN),
+        arrayOf(NaN, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.7f, 36.4f, 36.1f, 35.8f, 35.5f, 35.2f, 34.9f, 34.6f, 34.4f, 34.1f, 33.6f, 33.1f, 32.6f, 31.6f, 30.6f, 29.5f, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.6f, 36.3f, 35.9f, 35.5f, 35.1f, 34.7f, 34.4f, 34.0f, 33.6f, 33.2f, 32.9f, 32.4f, 31.9f, 31.4f, 30.9f, 29.9f, 28.9f, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.6f, 36.5f, 36.5f, 36.4f, 36.3f, 36.1f, 36.0f, 35.8f, 35.4f, 35.0f, 34.6f, 34.3f, 33.9f, 33.5f, 33.2f, 32.8f, 32.4f, 32.0f, 31.5f, 31.1f, 30.6f, 30.1f, 29.6f, 29.2f, 28.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.9f, 36.8f, 36.7f, 36.5f, 36.3f, 36.1f, 36.0f, 35.8f, 35.6f, 35.5f, 35.3f, 34.9f, 34.5f, 34.2f, 33.8f, 33.4f, 33.0f, 32.7f, 32.3f, 31.9f, 31.6f, 31.1f, 30.7f, 30.2f, 29.7f, 29.4f, 28.9f, 28.4f, 28.0f, 27.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.7f, 36.6f, 36.6f, 36.6f, 36.2f, 36.0f, 35.8f, 35.5f, 35.3f, 35.1f, 34.9f, 34.6f, 34.4f, 34.1f, 33.7f, 33.3f, 32.9f, 32.6f, 32.2f, 31.9f, 31.5f, 31.1f, 30.8f, 30.4f, 29.9f, 29.5f, 29.0f, 28.5f, 28.1f, 27.7f, 27.3f, 26.8f, 26.4f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.5f, 36.4f, 36.4f, 36.3f, 36.3f, 36.2f, 35.8f, 35.2f, 34.9f, 34.6f, 34.4f, 34.1f, 33.8f, 33.5f, 33.2f, 32.9f, 32.5f, 32.2f, 31.7f, 31.4f, 31.0f, 30.7f, 30.3f, 30.0f, 29.6f, 29.1f, 28.7f, 28.3f, 27.8f, 27.4f, 26.9f, 26.5f, 26.2f, 25.7f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(35.9f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 36.0f, 35.9f, 35.7f, 35.6f, 35.4f, 35.2f, 34.8f, 34.2f, 33.7f, 33.4f, 33.2f, 32.9f, 32.6f, 32.3f, 32.0f, 31.6f, 31.3f, 31.0f, 30.6f, 30.2f, 29.9f, 29.6f, 29.2f, 28.9f, 28.4f, 28.0f, 27.6f, 27.1f, 26.7f, 26.3f, 25.8f, 25.4f, 25.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(35.5f, 35.5f, 35.5f, 35.6f, 35.6f, 35.6f, 35.6f, 35.6f, 35.6f, 35.3f, 35.1f, 34.8f, 34.5f, 34.2f, 33.8f, 33.2f, 32.7f, 32.2f, 32.0f, 31.7f, 31.4f, 31.1f, 30.8f, 30.5f, 30.1f, 29.8f, 29.5f, 29.2f, 28.8f, 28.5f, 28.1f, 27.7f, 27.3f, 26.8f, 26.4f, 26.0f, 25.6f, 25.1f, 24.7f, 24.3f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(34.2f, 34.3f, 34.3f, 34.4f, 34.5f, 34.6f, 34.7f, 34.8f, 34.6f, 34.2f, 33.9f, 33.6f, 33.2f, 32.8f, 32.3f, 31.8f, 31.3f, 30.8f, 30.5f, 30.2f, 29.9f, 29.6f, 29.3f, 29.0f, 28.7f, 28.4f, 28.1f, 27.8f, 27.3f, 26.9f, 26.5f, 26.1f, 25.7f, 25.3f, 24.9f, 24.4f, 24.0f, 23.6f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(33.0f, 33.0f, 33.2f, 33.4f, 33.6f, 33.8f, 34.0f, 33.8f, 33.4f, 33.0f, 32.6f, 32.2f, 31.8f, 31.3f, 30.9f, 30.4f, 29.9f, 29.4f, 29.1f, 28.8f, 28.5f, 28.2f, 27.9f, 27.6f, 27.3f, 27.0f, 26.7f, 26.3f, 25.7f, 25.3f, 24.9f, 24.5f, 24.1f, 23.7f, 23.3f, 22.9f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(31.9f, 32.1f, 32.3f, 32.4f, 32.6f, 32.8f, 32.5f, 32.2f, 31.9f, 31.5f, 31.2f, 30.8f, 30.3f, 29.9f, 29.4f, 29.0f, 28.4f, 27.9f, 27.6f, 27.3f, 27.0f, 26.7f, 26.4f, 26.1f, 25.8f, 25.4f, 25.0f, 24.7f, 24.1f, 23.7f, 23.4f, 23.0f, 22.6f, 22.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(31.0f, 31.1f, 31.2f, 31.4f, 31.5f, 31.3f, 31.0f, 30.7f, 30.4f, 30.1f, 29.7f, 29.3f, 28.9f, 28.4f, 28.0f, 27.5f, 26.9f, 26.4f, 26.1f, 25.8f, 25.6f, 25.3f, 25.0f, 24.6f, 24.2f, 23.9f, 23.5f, 23.1f, 22.6f, 22.2f, 21.8f, 21.4f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(30.0f, 30.1f, 30.3f, 30.5f, 30.3f, 30.0f, 29.7f, 29.4f, 29.1f, 28.7f, 28.3f, 27.8f, 27.4f, 27.0f, 26.5f, 26.0f, 25.4f, 24.9f, 24.7f, 24.4f, 24.1f, 23.7f, 23.4f, 23.0f, 22.7f, 22.3f, 21.9f, 21.6f, 21.0f, 20.6f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(29.1f, 29.2f, 29.4f, 29.2f, 28.9f, 28.6f, 28.3f, 28.0f, 27.6f, 27.2f, 26.8f, 26.4f, 26.0f, 25.5f, 25.0f, 24.5f, 24.0f, 23.5f, 23.2f, 22.9f, 22.5f, 22.2f, 21.8f, 21.5f, 21.1f, 20.8f, 20.4f, 20.1f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(28.2f, 28.4f, 28.2f, 27.9f, 27.6f, 27.3f, 27.0f, 26.6f, 26.2f, 25.8f, 25.4f, 25.0f, 24.5f, 24.1f, 23.6f, 23.1f, 22.7f, 22.1f, 21.7f, 21.4f, 21.0f, 20.7f, 20.4f, 20.0f, 19.7f, 19.4f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(27.3f, 27.1f, 26.9f, 26.6f, 26.3f, 26.0f, 25.6f, 25.2f, 24.8f, 24.4f, 24.0f, 23.6f, 23.1f, 22.7f, 22.3f, 21.8f, 21.2f, 20.6f, 20.3f, 19.9f, 19.6f, 19.3f, 19.0f, 18.7f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN))
 
-    val TORQUE_2001_5_1700_RPM_MAX_CRUISE = arrayOf(
-        arrayOf(NaN,NaN,NaN,NaN,NaN,NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.4f,40.1f,39.7f,39.1f,38.5f,37.9f,37.0f,35.9f,34.7f,33.6f,32.4f),
-        arrayOf(NaN,NaN,NaN,NaN,NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.3f,39.9f,39.6f,39.2f,38.8f,38.1f,37.3f,36.4f,35.3f,34.1f,33.0f,31.9f,NaN),
-        arrayOf(NaN,NaN,NaN,NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.3f,39.8f,39.4f,39.0f,38.5f,38.1f,37.6f,36.7f,35.8f,34.7f,33.6f,32.5f,31.4f,NaN,NaN),
-        arrayOf(NaN,NaN,NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.5f,40.5f,40.4f,40.3f,40.3f,40.2f,40.1f,40.1f,40.0f,39.6f,39.2f,38.8f,38.3f,37.9f,37.4f,37.0f,36.5f,36.1f,35.1f,34.1f,33.0f,31.9f,30.8f,NaN,NaN,NaN),
-        arrayOf(NaN,NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.7f,40.7f,40.7f,40.7f,40.7f,40.7f,40.7f,40.7f,40.7f,40.6f,40.4f,40.3f,40.1f,40.0f,39.9f,39.7f,39.6f,39.5f,39.3f,39.0f,38.5f,38.1f,37.7f,37.2f,36.8f,36.4f,35.9f,35.5f,35.0f,34.5f,33.5f,32.4f,31.3f,30.2f,NaN,NaN,NaN,NaN),
-        arrayOf(NaN,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.5f,40.3f,40.1f,39.9f,39.7f,39.5f,39.2f,39.0f,38.8f,38.6f,38.2f,37.8f,37.4f,36.9f,36.5f,36.0f,35.6f,35.1f,34.7f,34.3f,33.8f,33.3f,32.7f,31.7f,30.7f,29.7f,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.4f,40.2f,39.9f,39.6f,39.3f,39.0f,38.8f,38.5f,38.2f,37.9f,37.5f,37.1f,36.6f,36.2f,35.7f,35.3f,34.8f,34.4f,33.9f,33.5f,33.0f,32.5f,32.0f,31.6f,31.1f,30.1f,29.1f,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.5f,40.5f,40.3f,39.9f,39.6f,39.3f,38.9f,38.6f,38.2f,37.9f,37.5f,37.2f,36.8f,36.4f,35.9f,35.5f,35.0f,34.6f,34.2f,33.7f,33.3f,32.9f,32.4f,31.9f,31.4f,31.0f,30.5f,30.0f,29.5f,28.6f,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.5f,40.5f,40.4f,40.1f,39.7f,39.3f,38.9f,38.5f,38.1f,37.7f,37.3f,36.9f,36.5f,36.1f,35.7f,35.2f,34.8f,34.4f,33.9f,33.5f,33.1f,32.7f,32.2f,31.8f,31.3f,30.8f,30.4f,29.9f,29.4f,29.0f,28.5f,28.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(40.2f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.4f,40.2f,40.0f,39.7f,39.5f,38.8f,38.4f,38.1f,37.7f,37.3f,36.9f,36.5f,36.1f,35.7f,35.3f,34.9f,34.5f,34.1f,33.6f,33.2f,32.8f,32.4f,31.9f,31.5f,31.1f,30.6f,30.2f,29.7f,29.3f,28.8f,28.4f,27.9f,27.5f,27.0f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(40.5f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.6f,40.3f,39.9f,39.4f,39.0f,38.6f,37.9f,37.2f,36.8f,36.4f,36.1f,35.7f,35.3f,35.0f,34.6f,34.1f,33.7f,33.3f,32.9f,32.5f,32.1f,31.6f,31.2f,30.8f,30.4f,29.9f,29.5f,29.1f,28.6f,28.2f,27.8f,27.3f,26.9f,26.4f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(38.8f,38.8f,38.8f,38.8f,38.8f,39.0f,39.2f,39.4f,39.6f,39.9f,39.5f,39.0f,38.5f,38.0f,37.5f,36.9f,36.2f,35.5f,35.1f,34.8f,34.4f,34.1f,33.7f,33.3f,32.9f,32.5f,32.1f,31.7f,31.3f,30.9f,30.5f,30.1f,29.7f,29.3f,28.8f,28.4f,28.0f,27.6f,27.1f,26.7f,26.3f,25.8f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.9f,36.9f,36.9f,36.9f,37.3f,37.7f,38.2f,38.6f,39.1f,38.7f,38.2f,37.6f,37.0f,36.4f,35.8f,35.2f,34.5f,33.9f,33.5f,33.2f,32.9f,32.5f,32.1f,31.7f,31.3f,30.9f,30.6f,30.2f,29.8f,29.4f,29.0f,28.6f,28.2f,27.7f,27.3f,26.9f,26.5f,26.1f,25.7f,25.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(36.1f,36.2f,36.3f,36.5f,36.8f,37.1f,37.4f,37.7f,37.4f,36.9f,36.4f,35.9f,35.4f,34.8f,34.2f,33.5f,32.9f,32.3f,31.9f,31.6f,31.2f,30.8f,30.5f,30.1f,29.7f,29.3f,29.0f,28.6f,28.2f,27.8f,27.4f,27.0f,26.6f,26.2f,25.8f,25.3f,24.9f,24.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(35.4f,35.6f,35.8f,35.9f,36.1f,36.2f,36.4f,36.1f,35.7f,35.2f,34.8f,34.4f,33.8f,33.2f,32.6f,32.0f,31.4f,30.7f,30.3f,29.9f,29.6f,29.2f,28.9f,28.5f,28.2f,27.8f,27.4f,27.0f,26.6f,26.2f,25.8f,25.4f,25.0f,24.6f,24.2f,23.8f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(34.3f,34.5f,34.6f,34.8f,34.9f,35.1f,34.8f,34.4f,34.1f,33.7f,33.3f,32.8f,32.2f,31.6f,31.0f,30.4f,29.7f,29.0f,28.7f,28.4f,28.0f,27.7f,27.3f,27.0f,26.6f,26.2f,25.9f,25.5f,25.1f,24.7f,24.3f,23.9f,23.5f,23.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(33.1f,33.3f,33.4f,33.6f,33.7f,33.5f,33.2f,32.9f,32.6f,32.2f,31.7f,31.1f,30.6f,30.0f,29.4f,28.8f,28.1f,27.5f,27.2f,26.8f,26.5f,26.2f,25.8f,25.5f,25.1f,24.7f,24.4f,24.0f,23.6f,23.2f,22.9f,22.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(32.1f,32.2f,32.3f,32.5f,32.3f,32.1f,31.8f,31.5f,31.2f,30.7f,30.2f,29.6f,29.0f,28.5f,27.9f,27.2f,26.6f,26.0f,25.7f,25.3f,25.0f,24.7f,24.3f,24.0f,23.6f,23.2f,22.9f,22.5f,22.2f,21.8f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(31.0f,31.1f,31.3f,31.1f,30.9f,30.7f,30.5f,30.2f,29.8f,29.2f,28.6f,28.1f,27.5f,26.9f,26.3f,25.7f,25.1f,24.5f,24.2f,23.8f,23.5f,23.2f,22.8f,22.5f,22.2f,21.8f,21.5f,21.2f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(30.0f,30.1f,30.0f,29.8f,29.6f,29.4f,29.2f,28.8f,28.3f,27.7f,27.2f,26.6f,26.0f,25.5f,24.9f,24.3f,23.7f,23.1f,22.8f,22.5f,22.1f,21.8f,21.5f,21.2f,20.9f,20.5f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN),
-        arrayOf(29.0f,28.9f,28.8f,28.6f,28.4f,28.3f,27.8f,27.3f,26.8f,26.2f,25.7f,25.1f,24.6f,24.0f,23.5f,22.9f,22.4f,21.7f,21.4f,21.1f,20.8f,20.5f,20.2f,19.9f,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN))
+    private val TORQUE_2001_5_1700_RPM_MAX_CRUISE = arrayOf(
+        arrayOf(NaN, NaN, NaN, NaN, NaN, NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.4f, 40.1f, 39.7f, 39.1f, 38.5f, 37.9f, 37.0f, 35.9f, 34.7f, 33.6f, 32.4f),
+        arrayOf(NaN, NaN, NaN, NaN, NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.3f, 39.9f, 39.6f, 39.2f, 38.8f, 38.1f, 37.3f, 36.4f, 35.3f, 34.1f, 33.0f, 31.9f, NaN),
+        arrayOf(NaN, NaN, NaN, NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.3f, 39.8f, 39.4f, 39.0f, 38.5f, 38.1f, 37.6f, 36.7f, 35.8f, 34.7f, 33.6f, 32.5f, 31.4f, NaN, NaN),
+        arrayOf(NaN, NaN, NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.5f, 40.5f, 40.4f, 40.3f, 40.3f, 40.2f, 40.1f, 40.1f, 40.0f, 39.6f, 39.2f, 38.8f, 38.3f, 37.9f, 37.4f, 37.0f, 36.5f, 36.1f, 35.1f, 34.1f, 33.0f, 31.9f, 30.8f, NaN, NaN, NaN),
+        arrayOf(NaN, NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.7f, 40.7f, 40.7f, 40.7f, 40.7f, 40.7f, 40.7f, 40.7f, 40.7f, 40.6f, 40.4f, 40.3f, 40.1f, 40.0f, 39.9f, 39.7f, 39.6f, 39.5f, 39.3f, 39.0f, 38.5f, 38.1f, 37.7f, 37.2f, 36.8f, 36.4f, 35.9f, 35.5f, 35.0f, 34.5f, 33.5f, 32.4f, 31.3f, 30.2f, NaN, NaN, NaN, NaN),
+        arrayOf(NaN, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.5f, 40.3f, 40.1f, 39.9f, 39.7f, 39.5f, 39.2f, 39.0f, 38.8f, 38.6f, 38.2f, 37.8f, 37.4f, 36.9f, 36.5f, 36.0f, 35.6f, 35.1f, 34.7f, 34.3f, 33.8f, 33.3f, 32.7f, 31.7f, 30.7f, 29.7f, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.4f, 40.2f, 39.9f, 39.6f, 39.3f, 39.0f, 38.8f, 38.5f, 38.2f, 37.9f, 37.5f, 37.1f, 36.6f, 36.2f, 35.7f, 35.3f, 34.8f, 34.4f, 33.9f, 33.5f, 33.0f, 32.5f, 32.0f, 31.6f, 31.1f, 30.1f, 29.1f, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.5f, 40.5f, 40.3f, 39.9f, 39.6f, 39.3f, 38.9f, 38.6f, 38.2f, 37.9f, 37.5f, 37.2f, 36.8f, 36.4f, 35.9f, 35.5f, 35.0f, 34.6f, 34.2f, 33.7f, 33.3f, 32.9f, 32.4f, 31.9f, 31.4f, 31.0f, 30.5f, 30.0f, 29.5f, 28.6f, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.5f, 40.5f, 40.4f, 40.1f, 39.7f, 39.3f, 38.9f, 38.5f, 38.1f, 37.7f, 37.3f, 36.9f, 36.5f, 36.1f, 35.7f, 35.2f, 34.8f, 34.4f, 33.9f, 33.5f, 33.1f, 32.7f, 32.2f, 31.8f, 31.3f, 30.8f, 30.4f, 29.9f, 29.4f, 29.0f, 28.5f, 28.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(40.2f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.4f, 40.2f, 40.0f, 39.7f, 39.5f, 38.8f, 38.4f, 38.1f, 37.7f, 37.3f, 36.9f, 36.5f, 36.1f, 35.7f, 35.3f, 34.9f, 34.5f, 34.1f, 33.6f, 33.2f, 32.8f, 32.4f, 31.9f, 31.5f, 31.1f, 30.6f, 30.2f, 29.7f, 29.3f, 28.8f, 28.4f, 27.9f, 27.5f, 27.0f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(40.5f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.6f, 40.3f, 39.9f, 39.4f, 39.0f, 38.6f, 37.9f, 37.2f, 36.8f, 36.4f, 36.1f, 35.7f, 35.3f, 35.0f, 34.6f, 34.1f, 33.7f, 33.3f, 32.9f, 32.5f, 32.1f, 31.6f, 31.2f, 30.8f, 30.4f, 29.9f, 29.5f, 29.1f, 28.6f, 28.2f, 27.8f, 27.3f, 26.9f, 26.4f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(38.8f, 38.8f, 38.8f, 38.8f, 38.8f, 39.0f, 39.2f, 39.4f, 39.6f, 39.9f, 39.5f, 39.0f, 38.5f, 38.0f, 37.5f, 36.9f, 36.2f, 35.5f, 35.1f, 34.8f, 34.4f, 34.1f, 33.7f, 33.3f, 32.9f, 32.5f, 32.1f, 31.7f, 31.3f, 30.9f, 30.5f, 30.1f, 29.7f, 29.3f, 28.8f, 28.4f, 28.0f, 27.6f, 27.1f, 26.7f, 26.3f, 25.8f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.9f, 36.9f, 36.9f, 36.9f, 37.3f, 37.7f, 38.2f, 38.6f, 39.1f, 38.7f, 38.2f, 37.6f, 37.0f, 36.4f, 35.8f, 35.2f, 34.5f, 33.9f, 33.5f, 33.2f, 32.9f, 32.5f, 32.1f, 31.7f, 31.3f, 30.9f, 30.6f, 30.2f, 29.8f, 29.4f, 29.0f, 28.6f, 28.2f, 27.7f, 27.3f, 26.9f, 26.5f, 26.1f, 25.7f, 25.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(36.1f, 36.2f, 36.3f, 36.5f, 36.8f, 37.1f, 37.4f, 37.7f, 37.4f, 36.9f, 36.4f, 35.9f, 35.4f, 34.8f, 34.2f, 33.5f, 32.9f, 32.3f, 31.9f, 31.6f, 31.2f, 30.8f, 30.5f, 30.1f, 29.7f, 29.3f, 29.0f, 28.6f, 28.2f, 27.8f, 27.4f, 27.0f, 26.6f, 26.2f, 25.8f, 25.3f, 24.9f, 24.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(35.4f, 35.6f, 35.8f, 35.9f, 36.1f, 36.2f, 36.4f, 36.1f, 35.7f, 35.2f, 34.8f, 34.4f, 33.8f, 33.2f, 32.6f, 32.0f, 31.4f, 30.7f, 30.3f, 29.9f, 29.6f, 29.2f, 28.9f, 28.5f, 28.2f, 27.8f, 27.4f, 27.0f, 26.6f, 26.2f, 25.8f, 25.4f, 25.0f, 24.6f, 24.2f, 23.8f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(34.3f, 34.5f, 34.6f, 34.8f, 34.9f, 35.1f, 34.8f, 34.4f, 34.1f, 33.7f, 33.3f, 32.8f, 32.2f, 31.6f, 31.0f, 30.4f, 29.7f, 29.0f, 28.7f, 28.4f, 28.0f, 27.7f, 27.3f, 27.0f, 26.6f, 26.2f, 25.9f, 25.5f, 25.1f, 24.7f, 24.3f, 23.9f, 23.5f, 23.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(33.1f, 33.3f, 33.4f, 33.6f, 33.7f, 33.5f, 33.2f, 32.9f, 32.6f, 32.2f, 31.7f, 31.1f, 30.6f, 30.0f, 29.4f, 28.8f, 28.1f, 27.5f, 27.2f, 26.8f, 26.5f, 26.2f, 25.8f, 25.5f, 25.1f, 24.7f, 24.4f, 24.0f, 23.6f, 23.2f, 22.9f, 22.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(32.1f, 32.2f, 32.3f, 32.5f, 32.3f, 32.1f, 31.8f, 31.5f, 31.2f, 30.7f, 30.2f, 29.6f, 29.0f, 28.5f, 27.9f, 27.2f, 26.6f, 26.0f, 25.7f, 25.3f, 25.0f, 24.7f, 24.3f, 24.0f, 23.6f, 23.2f, 22.9f, 22.5f, 22.2f, 21.8f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(31.0f, 31.1f, 31.3f, 31.1f, 30.9f, 30.7f, 30.5f, 30.2f, 29.8f, 29.2f, 28.6f, 28.1f, 27.5f, 26.9f, 26.3f, 25.7f, 25.1f, 24.5f, 24.2f, 23.8f, 23.5f, 23.2f, 22.8f, 22.5f, 22.2f, 21.8f, 21.5f, 21.2f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(30.0f, 30.1f, 30.0f, 29.8f, 29.6f, 29.4f, 29.2f, 28.8f, 28.3f, 27.7f, 27.2f, 26.6f, 26.0f, 25.5f, 24.9f, 24.3f, 23.7f, 23.1f, 22.8f, 22.5f, 22.1f, 21.8f, 21.5f, 21.2f, 20.9f, 20.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
+        arrayOf(29.0f, 28.9f, 28.8f, 28.6f, 28.4f, 28.3f, 27.8f, 27.3f, 26.8f, 26.2f, 25.7f, 25.1f, 24.6f, 24.0f, 23.5f, 22.9f, 22.4f, 21.7f, 21.4f, 21.1f, 20.8f, 20.5f, 20.2f, 19.9f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN))
 
     // Format: Alt [10000:2000:30000] x ISA [-40:10:30]. Values are lb/h
     // Consistent with POH tables
-    val FUEL_FLOW_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val FUEL_FLOW_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
@@ -209,7 +208,7 @@ object PerfCalculator {
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0))
 
-    val FUEL_FLOW_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
+    private val FUEL_FLOW_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
         arrayOf(529, 534, 540, 545, 550, 555, 559, 507),
         arrayOf(521, 526, 531, 536, 541, 546, 537, 487),
         arrayOf(513, 518, 523, 529, 533, 539, 515, 465),
@@ -222,7 +221,7 @@ object PerfCalculator {
         arrayOf(  0,   0,   0, 397, 376, 356, 333, 300),
         arrayOf(  0,   0,   0, 369, 349, 330, 309, 278))
 
-    val FUEL_FLOW_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val FUEL_FLOW_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
@@ -237,7 +236,7 @@ object PerfCalculator {
 
     // Format: Alt [10000:2000:30000] x ISA [-40:10:30] x weight [7000, 8000, 9000, 10000, 10400]. Values are TAS kts
     // Consistent with POH tables
-    val AIRSPEED_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val AIRSPEED_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
@@ -250,7 +249,7 @@ object PerfCalculator {
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)))
 
-    val AIRSPEED_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
+    private val AIRSPEED_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
         arrayOf(arrayOf(245, 244, 243, 242, 241), arrayOf(248, 247, 246, 244, 244), arrayOf(251, 250, 249, 247, 246), arrayOf(253, 253, 251, 250, 249), arrayOf(256, 255, 254, 252, 251), arrayOf(259, 258, 256, 254, 254), arrayOf(261, 260, 258, 256, 255), arrayOf(247, 245, 243, 241, 240)),
         arrayOf(arrayOf(250, 249, 248, 246, 246), arrayOf(253, 252, 251, 249, 249), arrayOf(256, 255, 253, 252, 251), arrayOf(259, 258, 256, 254, 254), arrayOf(261, 260, 259, 257, 256), arrayOf(264, 263, 261, 259, 258), arrayOf(263, 261, 259, 257, 256), arrayOf(249, 247, 245, 242, 241)),
         arrayOf(arrayOf(255, 254, 253, 251, 251), arrayOf(258, 257, 256, 254, 253), arrayOf(261, 260, 258, 257, 256), arrayOf(264, 263, 261, 259, 259), arrayOf(267, 266, 264, 262, 261), arrayOf(269, 268, 266, 264, 263), arrayOf(264, 262, 260, 258, 258), arrayOf(250, 248, 246, 242, 241)),
@@ -263,7 +262,7 @@ object PerfCalculator {
         arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(279, 278, 274, 269, 268), arrayOf(275, 272, 268, 263, 261), arrayOf(270, 265, 261, 255, 253), arrayOf(261, 256, 250, 245, 242), arrayOf(245, 239, 233, 224, 220)),
         arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(276, 275, 270, 265, 263), arrayOf(273, 269, 264, 258, 256), arrayOf(267, 262, 256, 250, 247), arrayOf(258, 252, 246, 239, 235), arrayOf(242, 235, 227, 215, 208)))
 
-    val AIRSPEED_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val AIRSPEED_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),

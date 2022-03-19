@@ -19,19 +19,19 @@ class SettingsStore(private val context: Context) {
         val AVIONICS_INTERFACE = intPreferencesKey("avionics_interface")
         val AIRCRAFT_WEIGHT= intPreferencesKey("aircraft_weight")
 
-        val PC_12_47E_MSN_1451_1942_4_Blade: Int = 0
-        val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
-        val PC_12_47E_MSN_2001_5_Blade: Int = 2
+        const val PC_12_47E_MSN_1451_1942_4_Blade: Int = 0
+        const val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
+        const val PC_12_47E_MSN_2001_5_Blade: Int = 2
 
-        val ECONNECT_INTERFACE: Int = 0
-        val GOGO_INTERFACE: Int = 1
-        val AUTO_DETECT_INTERFACE: Int = 2
+        const val ECONNECT_INTERFACE: Int = 0
+        const val GOGO_INTERFACE: Int = 1
+        const val AUTO_DETECT_INTERFACE: Int = 2
 
-        val WEIGHT_7000: Int = 0
-        val WEIGHT_8000: Int = 1
-        val WEIGHT_9000: Int = 2
-        val WEIGHT_10000: Int = 3
-        val WEIGHT_10400: Int = 4
+        const val WEIGHT_7000: Int = 0
+        const val WEIGHT_8000: Int = 1
+        const val WEIGHT_9000: Int = 2
+        const val WEIGHT_10000: Int = 3
+        const val WEIGHT_10400: Int = 4
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {

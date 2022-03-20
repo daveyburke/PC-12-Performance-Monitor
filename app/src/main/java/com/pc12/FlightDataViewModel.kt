@@ -74,21 +74,23 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                 val data:AvionicsData?
                 withContext(Dispatchers.IO) {
-                    Log.i(TAG, "Requesting data via " + SettingsStore.avionicsInterfaceToString(interfaceType))
+                    Log.i(TAG, "Requesting data via " +
+                            SettingsStore.avionicsInterfaceToString(interfaceType))
                     data = avionicsInterface.requestData()
                 }
 
                 if (data != null) {
                     val aircraftType = settingsStore.aircraftTypeFlow.first()
                     val weight = settingsStore.aircraftWeightFlow.first()
-                    Log.i(TAG, "Calculating torque for: " + data.altitude + " ft, " + data.outsideTemp + " celsius " +
-                            "with aircraft type " + SettingsStore.aircraftTypeToString(aircraftType))
-                    val newAvionicsData = AvionicsData(data.altitude, data.outsideTemp)
-                    val newPerfData = PerfCalculator.compute(newAvionicsData, aircraftType, weight)
+
+                    Log.i(TAG, "Calculating torque for: $data, " +
+                            SettingsStore.aircraftWeightToString(weight) + ", " +
+                            SettingsStore.aircraftTypeToString(aircraftType))
+                    val perfData = PerfCalculator.compute(data, aircraftType, weight)
 
                     uiState = uiState.copy(
-                        avionicsData = newAvionicsData,
-                        perfData = newPerfData,
+                        avionicsData = data,
+                        perfData = perfData,
                         avionicsInterface = SettingsStore.avionicsInterfaceToString(interfaceType),
                         age = 0)
                     lastSuccessTime = now().epochSecond

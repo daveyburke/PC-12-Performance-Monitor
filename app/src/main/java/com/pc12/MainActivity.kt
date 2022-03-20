@@ -87,7 +87,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
     ) {
         Column {
             val TORQUE_MAXAGE = 60  // 1 min
-            val deltaIsaTemp = outsideTemp - (15 - (altitude + 500) / 1000 * 2)
+            val deltaIsaTemp = outsideTemp + (altitude + 500) / 1000 * 2 - 15
 
             val altitudeStr = if (avionicsInterface == "") "---" else altitude
             val outsideTempStr = if (avionicsInterface == "") "---" else outsideTemp

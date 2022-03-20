@@ -73,10 +73,10 @@ object PerfCalculator {
         }
 
         // Table is sparse: interpolate over altitude and ISA temp. We could interpolate
-        // over weight, but that's a manually entered, changing value so would need the
-        // pilot to continually update during flight to be useful.
+        // over weight, but that's a manually entered value and not usually recalculated
+        // accurately and continually by the pilot during the flight.
         perfData.airspeed = interpolateOverAltitudeAndTemp(avionicsData.altitude,
-            avionicsData.outsideTemp, reshape(data, weightType) )
+            avionicsData.outsideTemp, reshape(data, weightType))
     }
 
     private fun interpolateOverAltitudeAndTemp(altitude: Int, outsideTemp: Int, data: Array<Array<Int>>) : Int {

@@ -40,10 +40,10 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     if (!flightDataViewModel.getUserAgreedTerms()) {
-                        WarningDialog({
+                        WarningDialog({  // onProceed
                                 flightDataViewModel.setUserAgreedTerms()
                                 flightDataViewModel.startNetworkRequests()
-                            },{
+                            },{  // onCancel
                                 finish()
                             }
                         )
@@ -220,8 +220,7 @@ fun AircraftTypeSettings(onClose: () -> Unit) {
     val optionItems = listOf(
         SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade),
         SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade),
-        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_2001_5_Blade)
-    )
+        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_2001_5_Blade))
 
     SelectOptionsDialog("Aircraft Type", optionItems, aircraftTypeFlow.value,
         onSelected =
@@ -269,8 +268,7 @@ fun AircraftWeightSettings(onClose: () -> Unit) {
         SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_8000),
         SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_9000),
         SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_10000),
-        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_10400),
-        )
+        SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_10400))
 
     SelectOptionsDialog("Aircraft Weight", optionItems, aircraftWeightFlow.value,
         onSelected =
@@ -341,12 +339,12 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
                 Column {
                     Text(
                         "THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine " +
-                                "torque. Always refer to the manufacturer's QRH or AFM for " +
-                                "authoritative engine settings.\n\n" +
-                                "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +
-                                "be held responsible for any engine or aircraft damage, " +
-                                "consequential / indirect / special damages, or loss of profit or revenue " +
-                                "resulting from the use of this app.\n",
+                             "torque. Always refer to the manufacturer's QRH or AFM for " +
+                             "authoritative engine settings.\n\n" +
+                             "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +
+                             "be held responsible for any engine or aircraft damage, " +
+                             "consequential / indirect / special damages, or loss of profit or revenue " +
+                             "resulting from the use of this app.\n",
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )

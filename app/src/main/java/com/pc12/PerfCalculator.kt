@@ -30,7 +30,7 @@ object PerfCalculator {
             else -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
         }
 
-        val i = ((avionicsData.altitude + 500) / 1000f).toInt() - 10  // 0 index corresponds to 10000
+        val i = ((avionicsData.altitude + 500) / 1000f).toInt() - 10  // 0 corresponds to 10000 ft
         var j = 0
         var interpolate = false
         for (outsideTemp: Int in SAT_TEMP_INDEX) {
@@ -81,9 +81,9 @@ object PerfCalculator {
 
     private fun interpolateOverAltitudeAndTemp(altitude: Int, outsideTemp: Int, data: Array<Array<Int>>) : Int {
         val out: Int
-        val i = ((altitude + 500) / 2000f).toInt() - 5  // 0 index corresponds to 10000
+        val i = ((altitude + 500) / 2000f).toInt() - 5  // 0 corresponds to 10000 ft
         val isa = outsideTemp + (altitude + 500) / 1000 * 2 - 15
-        val j = isa / 10 + 4  // 0 index corresponds to -40
+        val j = isa / 10 + 4  // 0 corresponds to -40 celsius
 
         if (isa < 30) {
             val w2 = (isa % 10) / 10.0f
@@ -108,7 +108,7 @@ object PerfCalculator {
     private fun reshape(input: Array<Array<Array<Int>>>, k: Int) : Array<Array<Int>> {
         val out = Array(input.size) { Array(input[0].size) { 0 } }
         for(i: Int in input.indices) {
-            for(j : Int in 0 until input[i].size) {
+            for(j: Int in 0 until input[i].size) {
                 out[i][j] = input[i][j][k]
             }
         }

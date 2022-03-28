@@ -29,8 +29,7 @@ class GogoAvionicsInterface : AvionicsInterface {
 
     override suspend fun requestData(): AvionicsData? {
         val client = OkHttpClient.Builder()
-            .connectTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
-            .readTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
             .build()
         val request = Request.Builder()
             .url(GOGO_URI)

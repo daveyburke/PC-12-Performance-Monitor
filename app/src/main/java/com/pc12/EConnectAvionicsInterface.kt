@@ -31,8 +31,7 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
         val url = getWebSocketAddr()
         if (url != null) {
             val client = OkHttpClient.Builder()
-                .connectTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
-                .readTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -91,8 +90,7 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
     private fun getWebSocketAddr(): String? {
         val BASE = "ws://$ECONNECT_IP/socket.io/1/websocket/"
         val client = OkHttpClient.Builder()
-            .connectTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
-            .readTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
             .build()
         val request = Request.Builder()
             .url("http://$ECONNECT_IP/socket.io/1/?t=0")

@@ -2,6 +2,7 @@ package com.pc12
 
 import android.util.Log
 import java.lang.Float.NaN
+import java.lang.Math.abs
 
 object PerfCalculator {
     private val TAG = PerfCalculator::class.qualifiedName
@@ -80,20 +81,27 @@ object PerfCalculator {
     }
 
     private fun interpolateOverAltitudeAndTemp(altitude: Int, outsideTemp: Int, data: Array<Array<Int>>) : Int {
-        val out: Int
         val roundedAltitude = ((altitude + 500) / 1000f).toInt() * 1000
-        val i = roundedAltitude / 2000 - 5  // 0 corresponds to 10000 ft
         val isa = outsideTemp + (altitude + 500) / 1000 * 2 - 15
-        val j = isa / 10 + 4  // 0 corresponds to -40 celsius
+
+        if (isa < -40 || isa > 39 ||
+            roundedAltitude < 10000 || roundedAltitude > 30000) {
+            return 0
+        }
+
+        val out: Int
+        val i = roundedAltitude / 2000 - 5  // 0 corresponds to 10000 ft
+        val j = isa / 10 + 4 // 0 corresponds to -40 celsius
+        val jStep = if (isa < 0) -1 else +1  // look back for neg, forward for pos
 
         if (isa < 30) {
-            val w2 = (isa % 10) / 10.0f
+            val w2 = (abs(isa) % 10) / 10.0f
             val w1 = 1.0f - w2
             out = if (roundedAltitude % 2000 != 0) {  // interp over alts and temps
                 (w1 * (data[i][j] + data[i+1][j]) / 2 +
-                        w2 * (data[i][j+1] + data[i+1][j+1]) / 2).toInt()
+                        w2 * (data[i][j+jStep] + data[i+1][j+jStep]) / 2).toInt()
             } else { // interp over temps only
-                (w1 * data[i][j] + w2 * data[i][j+1]).toInt()
+                (w1 * data[i][j] + w2 * data[i][j+jStep]).toInt()
             }
         } else {
             out = if (roundedAltitude % 2000 != 0) { // interp over alts only

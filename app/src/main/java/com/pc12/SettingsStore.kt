@@ -85,7 +85,7 @@ class SettingsStore(private val context: Context) {
 
     val aircraftWeightFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[AIRCRAFT_WEIGHT] ?: WEIGHT_9000
+            preferences[AIRCRAFT_WEIGHT] ?: WEIGHT_8000
         }
 
     suspend fun saveAircraftWeight(weight: Int) {

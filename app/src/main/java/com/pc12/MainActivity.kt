@@ -262,7 +262,7 @@ fun AircraftWeightSettings(onClose: () -> Unit) {
     val context = LocalContext.current
     val settingsStore = remember { SettingsStore(context)  }
     val aircraftWeightFlow = settingsStore.aircraftWeightFlow.collectAsState(
-        initial = SettingsStore.WEIGHT_9000)
+        initial = SettingsStore.WEIGHT_8000)
     val optionItems = listOf(
         SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_7000),
         SettingsStore.aircraftWeightToString(SettingsStore.WEIGHT_8000),

@@ -94,7 +94,7 @@ object PerfCalculator {
         val j = isa / 10 + 4 // 0 corresponds to -40 celsius
         val jStep = if (isa < 0) -1 else +1  // look back for neg, forward for pos
 
-        if (isa < 30) {
+        if (isa >-40 && isa < 30) {
             val w2 = (abs(isa) % 10) / 10.0f
             val w1 = 1.0f - w2
             out = if (roundedAltitude % 2000 != 0) {  // interp over alts and temps

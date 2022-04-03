@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.pc12.ui.theme.Cyan
 import com.pc12.ui.theme.PC12PerformanceMonitorTheme
 import kotlinx.coroutines.launch
@@ -69,6 +70,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
+    val systemUiController = rememberSystemUiController()
+    val backgroundColor = MaterialTheme.colors.background
+    SideEffect {
+        systemUiController.setNavigationBarColor(color = backgroundColor)
+    }
+
     PerformanceDataDisplay(flightDataViewModel.uiState.avionicsData.altitude,
                            flightDataViewModel.uiState.avionicsData.outsideTemp,
                            flightDataViewModel.uiState.perfData.torque,
@@ -130,7 +137,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
                 value = "TRQ: $torqueStr psi\nFF: $fuelFlowStr lb/h\nTAS: $airspeedStr kts",
                 onValueChange = { },
                 label = {
-                    Text("Max Cruise")
+                    Text("Maximum Cruise Power")
                 },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(

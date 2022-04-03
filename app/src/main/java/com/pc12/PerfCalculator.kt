@@ -81,21 +81,22 @@ object PerfCalculator {
 
     private fun interpolateOverAltitudeAndTemp(altitude: Int, outsideTemp: Int, data: Array<Array<Int>>) : Int {
         val out: Int
-        val i = ((altitude + 500) / 2000f).toInt() - 5  // 0 corresponds to 10000 ft
+        val roundedAltitude = ((altitude + 500) / 1000f).toInt() * 1000
+        val i = roundedAltitude / 2000 - 5  // 0 corresponds to 10000 ft
         val isa = outsideTemp + (altitude + 500) / 1000 * 2 - 15
         val j = isa / 10 + 4  // 0 corresponds to -40 celsius
 
         if (isa < 30) {
             val w2 = (isa % 10) / 10.0f
             val w1 = 1.0f - w2
-            out = if (altitude % 2000 != 0) {  // interp over alts and temps
+            out = if (roundedAltitude % 2000 != 0) {  // interp over alts and temps
                 (w1 * (data[i][j] + data[i+1][j]) / 2 +
                         w2 * (data[i][j+1] + data[i+1][j+1]) / 2).toInt()
             } else { // interp over temps only
                 (w1 * data[i][j] + w2 * data[i][j+1]).toInt()
             }
         } else {
-            out = if (altitude % 2000 != 0) { // interp over alts only
+            out = if (roundedAltitude % 2000 != 0) { // interp over alts only
                 (data[i][j] + data[i+1][j]) / 2
             } else {  // no interp
                 data[i][j]

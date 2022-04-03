@@ -53,7 +53,7 @@ object PerfCalculator {
 
     private fun calculateFuelFlow(avionicsData: AvionicsData, aircraftType: Int, perfData: PerfData) {
         val data = when(aircraftType) {
-            SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade ->  FUEL_FLOW_1451_1942_4_MAX_CRUISE
+            SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade ->  FUEL_FLOW_1001_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> FUEL_FLOW_1576_1942_5_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_2001_5_Blade -> FUEL_FLOW_2001_5_MAX_CRUISE
             else -> FUEL_FLOW_1576_1942_5_MAX_CRUISE
@@ -66,7 +66,7 @@ object PerfCalculator {
 
     private fun calculateTrueAirspeed(avionicsData: AvionicsData, aircraftType: Int, weightType: Int, perfData: PerfData) {
         val data = when(aircraftType) {
-            SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> AIRSPEED_1451_1942_4_MAX_CRUISE
+            SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> AIRSPEED_1001_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> AIRSPEED_1576_1942_5_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_2001_5_Blade -> AIRSPEED_2001_5_MAX_CRUISE
             else -> AIRSPEED_1576_1942_5_MAX_CRUISE
@@ -193,22 +193,10 @@ object PerfCalculator {
         arrayOf(30.0f, 30.1f, 30.0f, 29.8f, 29.6f, 29.4f, 29.2f, 28.8f, 28.3f, 27.7f, 27.2f, 26.6f, 26.0f, 25.5f, 24.9f, 24.3f, 23.7f, 23.1f, 22.8f, 22.5f, 22.1f, 21.8f, 21.5f, 21.2f, 20.9f, 20.5f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN),
         arrayOf(29.0f, 28.9f, 28.8f, 28.6f, 28.4f, 28.3f, 27.8f, 27.3f, 26.8f, 26.2f, 25.7f, 25.1f, 24.6f, 24.0f, 23.5f, 22.9f, 22.4f, 21.7f, 21.4f, 21.1f, 20.8f, 20.5f, 20.2f, 19.9f, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN))
 
-    // Format: Alt [10000:2000:30000] x ISA [-40:10:30]. Values are lb/h
-    // Consistent with POH tables
-    private val FUEL_FLOW_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
-        arrayOf(0, 0, 0, 0, 0, 0, 0, 0))
-
-    private val FUEL_FLOW_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
+    // Format: Alt [10000:2000:30000] x ISA [-40:10:30], based on 8000 lb weight
+    // Values are lb/h
+    // Consistent with POH tables, Revision 15
+    private val FUEL_FLOW_1001_1942_4_MAX_CRUISE = arrayOf(
         arrayOf(529, 534, 540, 545, 550, 555, 559, 507),
         arrayOf(521, 526, 531, 536, 541, 546, 537, 487),
         arrayOf(513, 518, 523, 529, 533, 539, 515, 465),
@@ -221,7 +209,20 @@ object PerfCalculator {
         arrayOf(  0,   0,   0, 397, 376, 356, 333, 300),
         arrayOf(  0,   0,   0, 369, 349, 330, 309, 278))
 
-    private val FUEL_FLOW_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val FUEL_FLOW_1576_1942_5_MAX_CRUISE = arrayOf(
+        arrayOf(528, 533, 538, 544, 549, 554, 560, 512),
+        arrayOf(519, 524, 530, 535, 539, 545, 542, 491),
+        arrayOf(511, 517, 522, 527, 532, 537, 520, 470),
+        arrayOf(  0, 508, 513, 518, 522, 528, 493, 446),
+        arrayOf(  0, 499, 504, 509, 518, 499, 465, 421),
+        arrayOf(  0, 487, 492, 496, 497, 470, 438, 396),
+        arrayOf(  0,   0, 476, 480, 467, 443, 412, 372),
+        arrayOf(  0,   0, 442, 457, 438, 416, 387, 349),
+        arrayOf(  0,   0,   0, 423, 409, 388, 362, 326),
+        arrayOf(  0,   0,   0, 396, 381, 361, 336, 302),
+        arrayOf(  0,   0,   0, 368, 354, 334, 313, 281))
+
+    private val FUEL_FLOW_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for the NGX
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
@@ -234,22 +235,10 @@ object PerfCalculator {
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0),
         arrayOf(0, 0, 0, 0, 0, 0, 0, 0))
 
-    // Format: Alt [10000:2000:30000] x ISA [-40:10:30] x weight [7000, 8000, 9000, 10000, 10400]. Values are TAS kts
-    // Consistent with POH tables
-    private val AIRSPEED_1451_1942_4_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
-        arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)))
-
-    private val AIRSPEED_1576_1942_5_MAX_CRUISE = arrayOf(  // TODO: Generic data. Update from actual POH
+    // Format: Alt [10000:2000:30000] x ISA [-40:10:30] x weight [7000, 8000, 9000, 10000, 10400]
+    // Values are TAS kts
+    // Consistent with POH tables, Revision 15
+    private val AIRSPEED_1001_1942_4_MAX_CRUISE = arrayOf(
         arrayOf(arrayOf(245, 244, 243, 242, 241), arrayOf(248, 247, 246, 244, 244), arrayOf(251, 250, 249, 247, 246), arrayOf(253, 253, 251, 250, 249), arrayOf(256, 255, 254, 252, 251), arrayOf(259, 258, 256, 254, 254), arrayOf(261, 260, 258, 256, 255), arrayOf(247, 245, 243, 241, 240)),
         arrayOf(arrayOf(250, 249, 248, 246, 246), arrayOf(253, 252, 251, 249, 249), arrayOf(256, 255, 253, 252, 251), arrayOf(259, 258, 256, 254, 254), arrayOf(261, 260, 259, 257, 256), arrayOf(264, 263, 261, 259, 258), arrayOf(263, 261, 259, 257, 256), arrayOf(249, 247, 245, 242, 241)),
         arrayOf(arrayOf(255, 254, 253, 251, 251), arrayOf(258, 257, 256, 254, 253), arrayOf(261, 260, 258, 257, 256), arrayOf(264, 263, 261, 259, 259), arrayOf(267, 266, 264, 262, 261), arrayOf(269, 268, 266, 264, 263), arrayOf(264, 262, 260, 258, 258), arrayOf(250, 248, 246, 242, 241)),
@@ -262,7 +251,20 @@ object PerfCalculator {
         arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(279, 278, 274, 269, 268), arrayOf(275, 272, 268, 263, 261), arrayOf(270, 265, 261, 255, 253), arrayOf(261, 256, 250, 245, 242), arrayOf(245, 239, 233, 224, 220)),
         arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(276, 275, 270, 265, 263), arrayOf(273, 269, 264, 258, 256), arrayOf(267, 262, 256, 250, 247), arrayOf(258, 252, 246, 239, 235), arrayOf(242, 235, 227, 215, 208)))
 
-    private val AIRSPEED_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for this aircraft
+    private val AIRSPEED_1576_1942_5_MAX_CRUISE = arrayOf(
+        arrayOf(arrayOf(243, 243, 241, 240, 239), arrayOf(246, 245, 244, 242, 242), arrayOf(249, 248, 247, 245, 244), arrayOf(251, 251, 249, 247, 247), arrayOf(254, 253, 252, 250, 249), arrayOf(257, 256, 255, 253, 252), arrayOf(261, 260, 258, 256, 255), arrayOf(249, 247, 245, 243, 242)),
+        arrayOf(arrayOf(249, 248, 247, 245, 244), arrayOf(252, 251, 249, 248, 247), arrayOf(254, 253, 252, 250, 249), arrayOf(257, 256, 254, 253, 252), arrayOf(260, 259, 257, 256, 255), arrayOf(264, 262, 261, 259, 258), arrayOf(265, 264, 262, 260, 259), arrayOf(252, 249, 247, 245, 243)),
+        arrayOf(arrayOf(254, 253, 252, 250, 249), arrayOf(257, 256, 255, 253, 252), arrayOf(260, 259, 257, 255, 255), arrayOf(263, 262, 260, 258, 257), arrayOf(266, 265, 263, 262, 261), arrayOf(270, 269, 267, 265, 264), arrayOf(267, 266, 263, 261, 260), arrayOf(253, 251, 249, 246, 244)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(263, 262, 260, 258, 257), arrayOf(266, 265, 263, 261, 260), arrayOf(269, 268, 266, 264, 264), arrayOf(273, 272, 270, 268, 267), arrayOf(277, 275, 273, 271, 270), arrayOf(269, 267, 264, 262, 261), arrayOf(255, 252, 250, 246, 245)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(268, 267, 265, 263, 262), arrayOf(272, 271, 269, 267, 266), arrayOf(276, 274, 273, 271, 270), arrayOf(280, 278, 276, 274, 273), arrayOf(278, 276, 274, 272, 271), arrayOf(270, 267, 265, 262, 260), arrayOf(256, 253, 250, 246, 244)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(272, 271, 269, 267, 266), arrayOf(277, 275, 273, 271, 271), arrayOf(282, 280, 278, 276, 275), arrayOf(285, 283, 280, 278, 277), arrayOf(279, 277, 274, 272, 270), arrayOf(270, 268, 265, 261, 260), arrayOf(257, 254, 250, 245, 243)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(280, 278, 276, 274, 274), arrayOf(285, 283, 281, 279, 278), arrayOf(285, 282, 280, 277, 275), arrayOf(279, 276, 274, 270, 268), arrayOf(270, 268, 264, 260, 258), arrayOf(256, 253, 248, 243, 241)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(277, 277, 277, 277, 276), arrayOf(284, 284, 282, 280, 278), arrayOf(284, 281, 278, 275, 273), arrayOf(279, 276, 272, 268, 266), arrayOf(270, 267, 263, 258, 256), arrayOf(256, 252, 246, 241, 239)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(281, 281, 281, 277, 275), arrayOf(282, 279, 276, 272, 270), arrayOf(277, 274, 270, 265, 263), arrayOf(269, 265, 260, 254, 252), arrayOf(254, 249, 243, 236, 233)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(279, 279, 277, 273, 271), arrayOf(280, 277, 272, 268, 266), arrayOf(275, 271, 266, 260, 258), arrayOf(267, 261, 256, 250, 247), arrayOf(251, 245, 238, 230, 226)),
+        arrayOf(arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(  0,   0,   0,   0,   0), arrayOf(276, 276, 274, 269, 266), arrayOf(277, 273, 268, 263, 260), arrayOf(272, 267, 261, 255, 252), arrayOf(263, 258, 251, 244, 240), arrayOf(248, 241, 232, 221, 213)))
+
+    private val AIRSPEED_2001_5_MAX_CRUISE = arrayOf(  // TODO: Get data for the NGX
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),
         arrayOf(arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0), arrayOf(0, 0, 0, 0, 0)),

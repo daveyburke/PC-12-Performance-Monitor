@@ -8,22 +8,14 @@ object PerfCalculator {
     private val TAG = PerfCalculator::class.qualifiedName
 
     fun compute(avionicsData: AvionicsData, aircraftType: Int, weightType: Int) : PerfData {
-        val perfData = PerfData(NaN, 0, 0)
-
-        if (avionicsData.altitude in 10000..30000 &&
-            avionicsData.outsideTemp in -55..24) {
-            calculateTorque(avionicsData, aircraftType, perfData)
-            calculateFuelFlow(avionicsData, aircraftType, perfData)
-            calculateTrueAirspeed(avionicsData, aircraftType, weightType, perfData)
-        } else {
-            Log.i(TAG, "Values out of range: " + avionicsData.altitude + " " +
-                    avionicsData.outsideTemp)
-        }
-
-        return perfData
+        return PerfData(
+            calculateTorque(avionicsData, aircraftType),
+            calculateFuelFlow(avionicsData, aircraftType),
+            calculateTrueAirspeed(avionicsData, aircraftType, weightType)
+        )
     }
 
-    private fun calculateTorque(avionicsData: AvionicsData, aircraftType: Int, perfData: PerfData) {
+    private fun calculateTorque(avionicsData: AvionicsData, aircraftType: Int) : Float {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> TORQUE_1451_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
@@ -31,7 +23,14 @@ object PerfCalculator {
             else -> TORQUE_DATA_1576_1942_5_MAX_CRUISE
         }
 
-        val i = ((avionicsData.altitude + 500) / 1000f).toInt() - 10  // 0 corresponds to 10000 ft
+        val roundedAltitude = ((avionicsData.altitude + 500) / 1000f).toInt() * 1000
+        if ((roundedAltitude !in 10000..30000) || (avionicsData.outsideTemp !in -55..24)) {
+            Log.i(TAG, "Values out of range: " + roundedAltitude + " " +
+                    avionicsData.outsideTemp)
+            return NaN
+        }
+
+        val i = roundedAltitude / 1000 - 10  // 0 corresponds to 10000 ft
         var j = 0
         var interpolate = false
         for (outsideTemp: Int in SAT_TEMP_INDEX) {
@@ -44,15 +43,17 @@ object PerfCalculator {
             j++
         }
 
+        var torque : Float
         if (interpolate) {  // and round to 2 decimal places
-            perfData.torque = (data[i][j] + data[i][j - 1]) / 2f
-            perfData.torque = (perfData.torque * 100.0f + 0.5f).toInt() / 100.0f
+            torque = (data[i][j] + data[i][j - 1]) / 2f
+            torque = (torque * 100.0f + 0.5f).toInt() / 100.0f
         } else {
-            perfData.torque = data[i][j]
+            torque = data[i][j]
         }
+        return torque
     }
 
-    private fun calculateFuelFlow(avionicsData: AvionicsData, aircraftType: Int, perfData: PerfData) {
+    private fun calculateFuelFlow(avionicsData: AvionicsData, aircraftType: Int) : Int {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade ->  FUEL_FLOW_1001_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> FUEL_FLOW_1576_1942_5_MAX_CRUISE
@@ -61,11 +62,11 @@ object PerfCalculator {
         }
 
         // Table is sparse: interpolate over altitude and ISA temp
-        perfData.fuelFlow = interpolateOverAltitudeAndTemp(avionicsData.altitude,
+        return interpolateOverAltitudeAndTemp(avionicsData.altitude,
             avionicsData.outsideTemp, data)
     }
 
-    private fun calculateTrueAirspeed(avionicsData: AvionicsData, aircraftType: Int, weightType: Int, perfData: PerfData) {
+    private fun calculateTrueAirspeed(avionicsData: AvionicsData, aircraftType: Int, weightType: Int) : Int {
         val data = when(aircraftType) {
             SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade -> AIRSPEED_1001_1942_4_MAX_CRUISE
             SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade -> AIRSPEED_1576_1942_5_MAX_CRUISE
@@ -76,7 +77,7 @@ object PerfCalculator {
         // Table is sparse: interpolate over altitude and ISA temp. We could interpolate
         // over weight, but that's a manually entered value and not usually recalculated
         // accurately and continually by the pilot during the flight.
-        perfData.airspeed = interpolateOverAltitudeAndTemp(avionicsData.altitude,
+        return interpolateOverAltitudeAndTemp(avionicsData.altitude,
             avionicsData.outsideTemp, reshape(data, weightType))
     }
 
@@ -84,14 +85,14 @@ object PerfCalculator {
         val roundedAltitude = ((altitude + 500) / 1000f).toInt() * 1000
         val isa = outsideTemp + (altitude + 500) / 1000 * 2 - 15
 
-        if (isa < -40 || isa > 39 ||
-            roundedAltitude < 10000 || roundedAltitude > 30000) {
+        if ((roundedAltitude !in 10000..30000)  || (isa !in -40..39)) {
+            Log.i(TAG, "Values out of range: " + roundedAltitude + " " + isa)
             return 0
         }
 
         val out: Int
-        val i = roundedAltitude / 2000 - 5  // 0 corresponds to 10000 ft
-        val j = isa / 10 + 4 // 0 corresponds to -40 celsius
+        val i = roundedAltitude / 2000 - 5   // 0 corresponds to 10000 ft
+        val j = isa / 10 + 4                 // 0 corresponds to -40 celsius
         val jStep = if (isa < 0) -1 else +1  // look back for neg, forward for pos
 
         if (isa >-40 && isa < 30) {

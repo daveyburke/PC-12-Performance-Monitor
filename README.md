@@ -26,6 +26,8 @@ Data refresh is attempted every 5 seconds when the app is open. If the data is s
 for authoritative engine settings.
 <br/>
 
+---
+
 For Android developers: this app demonstrates "Modern Android Development" using the Kotlin, Jetpack Compose, with ViewModel, DataStore, and coroutines.
 
 

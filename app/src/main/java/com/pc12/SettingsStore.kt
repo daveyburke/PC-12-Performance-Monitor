@@ -19,9 +19,9 @@ class SettingsStore(private val context: Context) {
         val AVIONICS_INTERFACE = intPreferencesKey("avionics_interface")
         val AIRCRAFT_WEIGHT= intPreferencesKey("aircraft_weight")
 
-        const val PC_12_47E_MSN_1451_1942_4_Blade: Int = 0
+        const val PC_12_47E_MSN_1001_1942_4_Blade: Int = 0
         const val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
-        const val PC_12_47E_MSN_2001_5_Blade: Int = 2
+        const val PC_12_47E_MSN_2001_5_Blade: Int = 2  // NGX
 
         const val ECONNECT_INTERFACE: Int = 0
         const val GOGO_INTERFACE: Int = 1
@@ -35,7 +35,7 @@ class SettingsStore(private val context: Context) {
 
         fun aircraftTypeToString(type : Int) : String {
             return when (type) {
-                PC_12_47E_MSN_1451_1942_4_Blade -> "PC-12/47E MSN 1451-1942 4 Blade"
+                PC_12_47E_MSN_1001_1942_4_Blade -> "PC-12/47E MSN 1001-1942 4 Blade"
                 PC_12_47E_MSN_1576_1942_5_Blade -> "PC-12/47E MSN 1576-1942 5 Blade"
                 PC_12_47E_MSN_2001_5_Blade -> "PC-12/47E MSN 2001+ 5 Blade"
                 else -> "Unknown"

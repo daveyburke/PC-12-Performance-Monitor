@@ -225,7 +225,7 @@ fun AircraftTypeSettings(onClose: () -> Unit) {
     val aircraftTypeFlow = settingsStore.aircraftTypeFlow.collectAsState(
         initial = SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade)
     val optionItems = listOf(
-        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1451_1942_4_Blade),
+        SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1001_1942_4_Blade),
         SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_1576_1942_5_Blade),
         SettingsStore.aircraftTypeToString(SettingsStore.PC_12_47E_MSN_2001_5_Blade))
 

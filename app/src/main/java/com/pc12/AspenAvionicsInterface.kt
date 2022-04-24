@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Interface via Aspen CG100 Gateway Wi-Fi.
- * HTTP GET + ARINC-429 over TCP socket.
+ * HTTP GET + ARINC-429 over TCP.
  */
 class AspenAvionicsInterface : AvionicsInterface {
     private val TAG = AspenAvionicsInterface::class.qualifiedName
@@ -44,8 +44,8 @@ class AspenAvionicsInterface : AvionicsInterface {
                     input.readFully(padBytes)
 
                     val len = (lenBytes[0].toInt() shl 8 and lenBytes[1].toInt())
-                    Log.e(TAG, "Data length %len found")
                     if (padBytes[0] == 0x00.toByte() && padBytes[1] == 0x02.toByte() && len % 4 == 0) {
+                        Log.e(TAG, "Data length %len found")
                         for (i in 0 until len/4) {
                             input.readFully(buf)
                             parseArinc429(buf)
@@ -103,15 +103,15 @@ class AspenAvionicsInterface : AvionicsInterface {
         Log.i(TAG, "ARINC-429 label: $label")
 
         // Data field in bits 28 to 11
-        // Example data field: 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) times a max range
-        // Bit 29 is sign bit (two's complement)
+        // Data interpretation: 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) * RANGE
+        // Bit 29 is the sign bit (two's complement)
         val data = (buf[0].toInt() shl 16 + buf[1].toInt() shl 8 + buf[2].toInt()) shr 2 and 0x3FFFF
-        val negative = buf[0].toInt() and 0x80 == 0x80 //
+        val negative = buf[0].toInt() and 0x80 == 0x80
 
         if (label == 213) {  // SAT
             outsideTemp = data / 0x40000 * 512 + if (negative) -512 else 0
         } else if (label == 203 ) {  // altitude
-            altitude = data / 0x40000 * 131072 + (if (negative) -131072 else 0)
+            altitude = data / 0x40000 * 131072 + if (negative) -131072 else 0
         }
     }
 }

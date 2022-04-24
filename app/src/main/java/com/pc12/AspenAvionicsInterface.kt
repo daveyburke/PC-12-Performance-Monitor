@@ -29,7 +29,6 @@ class AspenAvionicsInterface : AvionicsInterface {
 
     override suspend fun requestData(): AvionicsData? {
         if (probeService()) {
-            // Encapsulation: 2-byte len | 0x00 0x02 | ARINC-429 32-bit words
             try {
                 val socket = Socket(ASPEN_IP, SOCKET_PORT)
                 socket.soTimeout = SOCKET_TIMEOUT_SEC.toInt()
@@ -38,6 +37,7 @@ class AspenAvionicsInterface : AvionicsInterface {
                 val start = now().epochSecond
                 val buf = ByteArray(4)
 
+                // Encapsulation: 2-byte len | 0x00 0x02 | ARINC-429 32-bit words
                 do {
                     val lenBytes = ByteArray(2)
                     input.readFully(lenBytes)
@@ -47,7 +47,7 @@ class AspenAvionicsInterface : AvionicsInterface {
 
                     val len = (lenBytes[0].toInt() shl 8) + lenBytes[1].toInt()
                     if (padBytes[0] == 0x00.toByte() && padBytes[1] == 0x02.toByte() && len % 4 == 0) {
-                        Log.e(TAG, "Data length %len found")
+                        Log.e(TAG, "Data length %len")
                         for (i in 0 until len/4) {
                             input.readFully(buf)
                             parseArinc429(buf)

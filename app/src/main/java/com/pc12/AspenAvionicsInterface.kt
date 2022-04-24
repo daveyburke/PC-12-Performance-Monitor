@@ -107,9 +107,9 @@ class AspenAvionicsInterface : AvionicsInterface {
         // Data field in bits 28 to 11/ Data interpretation:
         // 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) * RANGE
         // Bit 29 is the sign bit (i.e. two's complement)
-        var data = ((buf[0].toInt() and 0x0F) shl 14) +
-                   ((buf[1].toInt() shl 6) and 0x3FFF.toInt()) +
-                   ((buf[2].toInt() shr 2) and 0x3F.toInt())
+        val data = ((buf[0].toInt() and 0x0F) shl 14) +
+                   ((buf[1].toInt() shl 6) and 0x3FFF) +
+                   ((buf[2].toInt() shr 2) and 0x3F)
         val negative = buf[0].toInt() and 0x80 == 0x80
 
         if (label == ARINC_SAT_LABEL) {

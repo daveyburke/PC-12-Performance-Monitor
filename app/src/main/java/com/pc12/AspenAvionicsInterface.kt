@@ -104,7 +104,7 @@ class AspenAvionicsInterface : AvionicsInterface {
                     (buf[3].toInt() and 0x07) // octal to decimal
         Log.i(TAG, "ARINC-429 label: $label")
 
-        // Data field in bits 28 to 11/ Data interpretation:
+        // Data field in bits 28 to 11. Data interpretation:
         // 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) * RANGE
         // Bit 29 is the sign bit (i.e. two's complement)
         val data = ((buf[0].toInt() and 0x0F) shl 14) +

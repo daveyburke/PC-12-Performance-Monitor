@@ -23,9 +23,10 @@ class SettingsStore(private val context: Context) {
         const val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
         const val PC_12_47E_MSN_2001_5_Blade: Int = 2  // NGX
 
-        const val ECONNECT_INTERFACE: Int = 0
-        const val GOGO_INTERFACE: Int = 1
-        const val AUTO_DETECT_INTERFACE: Int = 2
+        const val ASPEN_INTERFACE: Int = 0
+        const val ECONNECT_INTERFACE: Int = 1
+        const val GOGO_INTERFACE: Int = 2
+        const val AUTO_DETECT_INTERFACE: Int = 3
 
         const val WEIGHT_7000: Int = 0
         const val WEIGHT_8000: Int = 1
@@ -43,6 +44,7 @@ class SettingsStore(private val context: Context) {
         }
         fun avionicsInterfaceToString(type : Int) : String {
             return when (type) {
+                ASPEN_INTERFACE -> "Aspen"
                 ECONNECT_INTERFACE -> "eConnect"
                 GOGO_INTERFACE -> "Gogo"
                 AUTO_DETECT_INTERFACE -> "Auto-detect"
@@ -74,7 +76,7 @@ class SettingsStore(private val context: Context) {
 
     val avionicsInterfaceFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[AVIONICS_INTERFACE] ?: ECONNECT_INTERFACE
+            preferences[AVIONICS_INTERFACE] ?: ASPEN_INTERFACE
         }
 
     suspend fun saveAvionicsInterface(avionics: Int) {

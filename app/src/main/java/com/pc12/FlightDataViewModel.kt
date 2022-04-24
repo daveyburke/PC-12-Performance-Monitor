@@ -22,12 +22,15 @@ data class UIState (
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
     private val TAG = FlightDataViewModel::class.qualifiedName
     private val REQUEST_DATA_PERIOD_SEC = 5
+    private val ROUND_ROBIN_AVIONICS = arrayOf(SettingsStore.ASPEN_INTERFACE,
+                                               SettingsStore.ECONNECT_INTERFACE,
+                                               SettingsStore.GOGO_INTERFACE )
 
     private val settingsStore = SettingsStore(application)
     private var isNetworkRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
-    private var autoAvionicsInterfaceType = SettingsStore.ECONNECT_INTERFACE
+    private var roundRobinAvionicsIndex = 0
     private var lastRequestSuccessful = false
     private var lastSuccessTime: Long = 0
 
@@ -67,9 +70,10 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     interfaceType = autoDetectAvionicsInterfaceType()
                 }
                 val avionicsInterface = when (interfaceType) {
-                    SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
+                    SettingsStore.ASPEN_INTERFACE -> AspenAvionicsInterface()
                     SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
-                    else -> EConnectAvionicsInterface()  // should never get here
+                    SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
+                    else -> AspenAvionicsInterface()  // should never get here
                 }
 
                 val data:AvionicsData?
@@ -109,12 +113,10 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         // In auto mode, we just round-robin across avionics interfaces until one works,
         // then stick with it until it doesn't
         if (!lastRequestSuccessful) {
-            if (autoAvionicsInterfaceType == SettingsStore.ECONNECT_INTERFACE) {
-                autoAvionicsInterfaceType = SettingsStore.GOGO_INTERFACE
-            } else if (autoAvionicsInterfaceType == SettingsStore.GOGO_INTERFACE) {
-                autoAvionicsInterfaceType = SettingsStore.ECONNECT_INTERFACE
+            if (++roundRobinAvionicsIndex > ROUND_ROBIN_AVIONICS.size) {
+                roundRobinAvionicsIndex = 0
             }
         }
-        return autoAvionicsInterfaceType
+        return ROUND_ROBIN_AVIONICS[roundRobinAvionicsIndex]
     }
 }

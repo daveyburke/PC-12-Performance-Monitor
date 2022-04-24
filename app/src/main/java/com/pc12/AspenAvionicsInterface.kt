@@ -20,6 +20,8 @@ class AspenAvionicsInterface : AvionicsInterface {
     private val NETWORK_TIMEOUT_SEC = 1L
     private val SOCKET_TIMEOUT_SEC = 3L
     private val CREDENTIALS = "SG9uZXl3ZWxsUDpYUmZ0UFprUXkyZVpiSmphNjVuc0pVMis="
+    private val ARINC_SAT_LABEL = 213
+    private val ARINC_ALTITUDE_LABEL = 203
     private val INT_NAN = -99
 
     private var altitude = INT_NAN
@@ -43,7 +45,7 @@ class AspenAvionicsInterface : AvionicsInterface {
                     val padBytes = ByteArray(2)
                     input.readFully(padBytes)
 
-                    val len = (lenBytes[0].toInt() shl 8 and lenBytes[1].toInt())
+                    val len = (lenBytes[0].toInt() shl 8) + lenBytes[1].toInt()
                     if (padBytes[0] == 0x00.toByte() && padBytes[1] == 0x02.toByte() && len % 4 == 0) {
                         Log.e(TAG, "Data length %len found")
                         for (i in 0 until len/4) {
@@ -97,21 +99,25 @@ class AspenAvionicsInterface : AvionicsInterface {
         // https://en.wikipedia.org/wiki/ARINC_429
         // ARINC-429 in network order but label byte is reversed:
         // Bit 32 - Bit 25 | Bit 24 - Bit 17 | Bit 16 - Bit 9 | Bit 1 - Bit 8
-        val label = (buf[3].toInt() shr 6 and 0x03).toByte() * 100 +
-                    (buf[3].toInt() shr 3 and 0x07).toByte() * 10 +
-                    (buf[3].toInt() and 0x07).toByte()  // octal to decimal
+        val label = ((buf[3].toInt() shr 6) and 0x03) * 100 +
+                    ((buf[3].toInt() shr 3 and 0x07)) * 10 +
+                    (buf[3].toInt() and 0x07) // octal to decimal
         Log.i(TAG, "ARINC-429 label: $label")
 
-        // Data field in bits 28 to 11
-        // Data interpretation: 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) * RANGE
-        // Bit 29 is the sign bit (two's complement)
-        val data = (buf[0].toInt() shl 16 + buf[1].toInt() shl 8 + buf[2].toInt()) shr 2 and 0x3FFFF
+        // Data field in bits 28 to 11/ Data interpretation:
+        // 1110...1 is (1/2 + 1/4 + 1/8 + ... 1/2^18) * RANGE
+        // Bit 29 is the sign bit (i.e. two's complement)
+        var data = ((buf[0].toInt() and 0x0F) shl 14) +
+                   ((buf[1].toInt() shl 6) and 0x3FFF.toInt()) +
+                   ((buf[2].toInt() shr 2) and 0x3F.toInt())
         val negative = buf[0].toInt() and 0x80 == 0x80
 
-        if (label == 213) {  // SAT
-            outsideTemp = data / 0x40000 * 512 + if (negative) -512 else 0
-        } else if (label == 203 ) {  // altitude
-            altitude = data / 0x40000 * 131072 + if (negative) -131072 else 0
+        if (label == ARINC_SAT_LABEL) {
+            outsideTemp = (data.toFloat() / 0x40000.toFloat() * 512f).toInt() + if (negative) -512 else 0
+            Log.i(TAG, "ARINC-429 SAT: $outsideTemp")
+        } else if (label == ARINC_ALTITUDE_LABEL) {
+            altitude = (data.toFloat() / 0x40000.toFloat() * 131072f).toInt() + if (negative) -131072 else 0
+            Log.i(TAG, "ARINC-429 altitude: $altitude")
         }
     }
 }

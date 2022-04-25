@@ -10,8 +10,9 @@ import java.time.Instant.now
 import java.util.concurrent.TimeUnit
 
 /**
- * Interface via Aspen CG100 Gateway Wi-Fi.
+ * Interface via Aspen CG100 Gateway.
  * HTTP GET + ARINC-429 over TCP.
+ * (Credit Chad Brubaker for assistance with protocol analysis)
  */
 class AspenAvionicsInterface : AvionicsInterface {
     private val TAG = AspenAvionicsInterface::class.qualifiedName

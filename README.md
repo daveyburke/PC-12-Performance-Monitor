@@ -1,11 +1,13 @@
 # PC-12 Performance Monitor
 
-Android app that monitors altitude and outside air temp from avionics to automatically calculate max cruise engine torque, fuel flow, and true airspeed for Pilatus PC-12NG / NGX aircraft. Data consistent with eQRH tables and POH tables using interpolation (therefore torque and fuel flow assumes a 8000lb weight; airspeed accounts for weight). Supports 4-blade and 5-blade aircraft S/N 1001+ (for NGX, assumes 1700 RPM mode). Works with:
+Android app that monitors altitude and outside air temp from avionics to automatically calculate max cruise engine torque, fuel flow, and true airspeed for Pilatus PC-12NG / NGX aircraft. Supports 4-blade and 5-blade aircraft S/N 1001+ (for NGX, assumes 1700 RPM mode). Works with the following Wi-Fi access points / gateways:
 * Aspen CG-100
 * Emteq eConnect
-* Gogo Wi-Fi
-<br/>
+* Gogo
 
+Data consistent with eQRH tables and POH tables using interpolation. Reported torque and fuel flow assumes a 8000lb weight. Airspeed is a function of weight.
+<br/>
+<br/>
 <p align="center">
 <img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_1.png" alt="" width="175"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_2.png" alt="" width="175"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/daveyburke/PC-12-Performance-Monitor/main/Screenshot_2b.png" alt="" width="175"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <br/>

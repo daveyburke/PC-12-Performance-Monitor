@@ -64,7 +64,7 @@ class AspenAvionicsInterface : AvionicsInterface {
                 Log.e(TAG, "Connection error $e")
             } finally {
                 try {
-                    if (!socket.isClosed()) {
+                    if (!socket.isClosed) {
                         socket.close()
                     }
                 } catch (e: Exception) {}
@@ -116,7 +116,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         val data = ((buf[0].toInt() and 0x0F) shl 14) +
                    ((buf[1].toInt() shl 6) and 0x3FFF) +
                    ((buf[2].toInt() shr 2) and 0x3F)
-        var signBit = (buf[0].toInt() shr 7) and 0x01
+        val signBit = (buf[0].toInt() shr 7) and 0x01
 
         if (label == ARINC_SAT_LABEL) {
             outsideTemp = signBit * -512 + (data.toFloat() / 0x40000.toFloat() * 512f).toInt()

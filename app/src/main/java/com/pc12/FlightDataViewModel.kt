@@ -114,7 +114,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         // In auto mode, we just round-robin across avionics interfaces until one works,
         // then stick with it until it doesn't
         if (!lastRequestSuccessful) {
-            if (++roundRobinAvionicsIndex > ROUND_ROBIN_AVIONICS.size) {
+            if (++roundRobinAvionicsIndex == ROUND_ROBIN_AVIONICS.size) {
                 roundRobinAvionicsIndex = 0
             }
         }

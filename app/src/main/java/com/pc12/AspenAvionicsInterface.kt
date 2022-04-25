@@ -21,9 +21,16 @@ class AspenAvionicsInterface : AvionicsInterface {
     private val NETWORK_TIMEOUT_SEC = 1L
     private val SOCKET_TIMEOUT_MSEC = 3000
     private val CREDENTIALS = "SG9uZXl3ZWxsUDpYUmZ0UFprUXkyZVpiSmphNjVuc0pVMis="
+    private val INT_NAN = -99
     private val ARINC_SAT_LABEL = 213
     private val ARINC_ALTITUDE_LABEL = 203
-    private val INT_NAN = -99
+    private val LABELS = mapOf(1 to "Distance To Go", 2 to "Time To Go", 10 to "Latitude",
+        11 to "Longitude", 12 to "Ground Speed", 14 to "Magnetic Heading", 15 to "Wind Speed",
+        16 to "Wind Direction", 56 to "ETA", 75 to "Gross Weight", 152 to "Cabin Pressure",
+        203 to "Altitude", 204 to "Baro Altitude", 205 to "Indicated Airspeed",
+        210 to "True Airspeed", 213 to "Static Air Temperature", 244 to "Fuel Flow",
+        247 to "Fuel Flow", 312 to "Ground Speed", 314 to "True Heading", 315 to "Wind Speed",
+        316 to "Wind Direction", 320 to "Magnetic Heading")
 
     private var altitude = INT_NAN
     private var outsideTemp = INT_NAN
@@ -105,7 +112,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         val label = ((buf[3].toInt() shr 6) and 0x03) * 100 +
                     ((buf[3].toInt() shr 3 and 0x07)) * 10 +
                     (buf[3].toInt() and 0x07) // octal to decimal
-        Log.i(TAG, "ARINC-429 label: $label")
+        Log.i(TAG, "ARINC-429 label: $label (" + LABELS.get(label) + ")")
 
         // Data field in bits 28 to 11. Data interpretation:
         // 1110...1 is (1/2 + 1/4 + 1/8 + 0/16 + ... + 1/2^18) * RANGE

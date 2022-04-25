@@ -4,6 +4,7 @@ import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.DataInputStream
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.Instant.now
 import java.util.concurrent.TimeUnit
@@ -18,7 +19,7 @@ class AspenAvionicsInterface : AvionicsInterface {
     private val WSDL_PORT = 8188
     private val SOCKET_PORT = 9399
     private val NETWORK_TIMEOUT_SEC = 1L
-    private val SOCKET_TIMEOUT_SEC = 3L
+    private val SOCKET_TIMEOUT_MSEC = 3000
     private val CREDENTIALS = "SG9uZXl3ZWxsUDpYUmZ0UFprUXkyZVpiSmphNjVuc0pVMis="
     private val ARINC_SAT_LABEL = 213
     private val ARINC_ALTITUDE_LABEL = 203
@@ -29,16 +30,15 @@ class AspenAvionicsInterface : AvionicsInterface {
 
     override suspend fun requestData(): AvionicsData? {
         if (probeService()) {
+            val socket = Socket()
             try {
-                val socket = Socket(ASPEN_IP, SOCKET_PORT)
-                socket.soTimeout = SOCKET_TIMEOUT_SEC.toInt()
-
+                socket.connect(InetSocketAddress(ASPEN_IP, SOCKET_PORT), SOCKET_TIMEOUT_MSEC)
                 val input = DataInputStream(socket.getInputStream())
-                val start = now().epochSecond
                 val buf = ByteArray(4)
+                val start = now().toEpochMilli()
 
-                // Encapsulation: 2-byte len | 0x00 0x02 | ARINC-429 32-bit words
                 do {
+                    // Encapsulation: 2-byte len | 0x00 0x02 | ARINC-429 32-bit words
                     val lenBytes = ByteArray(2)
                     input.readFully(lenBytes)
 
@@ -57,11 +57,17 @@ class AspenAvionicsInterface : AvionicsInterface {
                         break
                     }
                 } while (altitude == INT_NAN || outsideTemp == INT_NAN &&
-                    (now().epochSecond - start) < SOCKET_TIMEOUT_SEC)
+                    (now().toEpochMilli() - start) < SOCKET_TIMEOUT_MSEC)
 
                 socket.close()
             } catch (e: Exception) {
                 Log.e(TAG, "Connection error $e")
+            } finally {
+                try {
+                    if (!socket.isClosed()) {
+                        socket.close()
+                    }
+                } catch (e: Exception) {}
             }
         }
 
@@ -110,13 +116,13 @@ class AspenAvionicsInterface : AvionicsInterface {
         val data = ((buf[0].toInt() and 0x0F) shl 14) +
                    ((buf[1].toInt() shl 6) and 0x3FFF) +
                    ((buf[2].toInt() shr 2) and 0x3F)
-        val negative = buf[0].toInt() and 0x80 == 0x80
+        var signBit = (buf[0].toInt() shr 7) and 0x01
 
         if (label == ARINC_SAT_LABEL) {
-            outsideTemp = (data.toFloat() / 0x40000.toFloat() * 512f).toInt() + if (negative) -512 else 0
+            outsideTemp = signBit * -512 + (data.toFloat() / 0x40000.toFloat() * 512f).toInt()
             Log.i(TAG, "ARINC-429 SAT: $outsideTemp")
         } else if (label == ARINC_ALTITUDE_LABEL) {
-            altitude = (data.toFloat() / 0x40000.toFloat() * 131072f).toInt() + if (negative) -131072 else 0
+            altitude = signBit * -131072 + (data.toFloat() / 0x40000.toFloat() * 131072f).toInt()
             Log.i(TAG, "ARINC-429 altitude: $altitude")
         }
     }

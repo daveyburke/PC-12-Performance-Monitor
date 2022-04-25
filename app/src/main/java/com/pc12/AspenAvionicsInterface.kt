@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
 class AspenAvionicsInterface : AvionicsInterface {
     private val TAG = AspenAvionicsInterface::class.qualifiedName
     private val ASPEN_IP = "10.22.44.1"
-    private val WSDL_PORT = 8188
-    private val SOCKET_PORT = 9399
+    private val ASPEN_WSDL_PORT = 8188
+    private val ASPEN_SOCKET_PORT = 9399
     private val NETWORK_TIMEOUT_SEC = 1L
     private val SOCKET_TIMEOUT_MSEC = 3000
     private val CREDENTIALS = "SG9uZXl3ZWxsUDpYUmZ0UFprUXkyZVpiSmphNjVuc0pVMis="
@@ -32,7 +32,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         if (probeService()) {
             val socket = Socket()
             try {
-                socket.connect(InetSocketAddress(ASPEN_IP, SOCKET_PORT), SOCKET_TIMEOUT_MSEC)
+                socket.connect(InetSocketAddress(ASPEN_IP, ASPEN_SOCKET_PORT), SOCKET_TIMEOUT_MSEC)
                 val input = DataInputStream(socket.getInputStream())
                 val buf = ByteArray(4)
                 val start = now().toEpochMilli()
@@ -58,8 +58,6 @@ class AspenAvionicsInterface : AvionicsInterface {
                     }
                 } while (altitude == INT_NAN || outsideTemp == INT_NAN &&
                     (now().toEpochMilli() - start) < SOCKET_TIMEOUT_MSEC)
-
-                socket.close()
             } catch (e: Exception) {
                 Log.e(TAG, "Connection error $e")
             } finally {
@@ -83,7 +81,7 @@ class AspenAvionicsInterface : AvionicsInterface {
             .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
             .build()
         val request = Request.Builder()
-            .url("http://$ASPEN_IP:$WSDL_PORT/wdls/ping")
+            .url("http://$ASPEN_IP:$ASPEN_WSDL_PORT/wdls/ping")
             .addHeader("Authorization", "basic $CREDENTIALS")
             .build()
 

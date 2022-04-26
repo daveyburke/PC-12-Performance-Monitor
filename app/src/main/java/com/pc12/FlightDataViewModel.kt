@@ -1,16 +1,24 @@
 package com.pc12
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.util.Log
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import java.lang.Float.NaN
 import java.time.Instant.now
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 data class UIState (
     val avionicsData: AvionicsData = AvionicsData(0, 0),
@@ -27,7 +35,9 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                                                SettingsStore.ECONNECT_INTERFACE,
                                                SettingsStore.GOGO_INTERFACE )
 
+    private val theApp = application
     private val settingsStore = SettingsStore(application)
+    private var wifiTransport: Network? = null
     private var isNetworkRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
@@ -77,12 +87,18 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     else -> AspenAvionicsInterface()  // should never get here
                 }
 
-                val data:AvionicsData?
+                Log.i(TAG, "Requesting data via " +
+                        SettingsStore.avionicsInterfaceToString(interfaceType))
+
+                val data : AvionicsData?
                 withContext(Dispatchers.IO) {
-                    Log.i(TAG, "Requesting data via " +
-                            SettingsStore.avionicsInterfaceToString(interfaceType))
-                    data = avionicsInterface.requestData()
-                }
+                    data = if (initWiFiTransport()) {
+                        avionicsInterface.requestData(wifiTransport!!)
+                    } else {
+                        Log.e(TAG, "Unable to get Wi-Fi transport")
+                        null
+                    }
+                }  // end I/O CoroutineScope
 
                 if (data != null) {
                     val aircraftType = settingsStore.aircraftTypeFlow.first()
@@ -91,6 +107,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     Log.i(TAG, "Calculating torque for: $data, " +
                             SettingsStore.aircraftWeightToString(weight) + ", " +
                             SettingsStore.aircraftTypeToString(aircraftType))
+
                     val perfData = PerfCalculator.compute(data, aircraftType, weight)
 
                     uiState = uiState.copy(
@@ -119,5 +136,23 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
             }
         }
         return ROUND_ROBIN_AVIONICS[roundRobinAvionicsIndex]
+    }
+
+    private fun initWiFiTransport() : Boolean {
+        if (wifiTransport == null) {
+            val latch = CountDownLatch(1)
+            val rb = NetworkRequest.Builder()
+            rb.addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.requestNetwork(rb.build(), object : NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    if (latch.count == 0L) return
+                    wifiTransport = network
+                    latch.countDown()
+                }
+            })
+            latch.await(1000, TimeUnit.MILLISECONDS)
+        }
+        return wifiTransport != null
     }
 }

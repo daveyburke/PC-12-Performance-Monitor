@@ -1,5 +1,6 @@
 package com.pc12
 
+import android.net.Network
 import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,9 +28,10 @@ class GogoAvionicsInterface : AvionicsInterface {
         var lastChange: Long = 0
     }
 
-    override suspend fun requestData(): AvionicsData? {
+    override suspend fun requestData(network: Network): AvionicsData? {
         val client = OkHttpClient.Builder()
             .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .socketFactory(network.socketFactory)
             .build()
         val request = Request.Builder()
             .url(GOGO_URI)

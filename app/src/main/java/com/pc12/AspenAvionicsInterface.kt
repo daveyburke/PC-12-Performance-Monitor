@@ -1,5 +1,6 @@
 package com.pc12
 
+import android.net.Network
 import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,19 +23,22 @@ class AspenAvionicsInterface : AvionicsInterface {
     private val NETWORK_TIMEOUT_SEC = 1L
     private val SOCKET_TIMEOUT_MSEC = 3000
     private val CREDENTIALS = "SG9uZXl3ZWxsUDpYUmZ0UFprUXkyZVpiSmphNjVuc0pVMis="
-    private val INT_NAN = -99
     private val ARINC_SAT_LABEL = 213
-    private val ARINC_ALTITUDE_LABEL = 203
+    private val ARINC_ALTITUDE_LABEL = 204  // (baro corrected altitude)
+    private val INT_NAN = -99
 
     private var altitude = INT_NAN
     private var outsideTemp = INT_NAN
 
-    override suspend fun requestData(): AvionicsData? {
-        if (probeService()) {
+    override suspend fun requestData(network: Network): AvionicsData? {
+        if (probeService(network)) {
             val socket = Socket()
+
             try {
-                Log.i(TAG, "Connect socket")
+                Log.i(TAG, "Connecting socket")
+                network.bindSocket(socket)
                 socket.connect(InetSocketAddress(ASPEN_IP, ASPEN_SOCKET_PORT), SOCKET_TIMEOUT_MSEC)
+                socket.soTimeout = SOCKET_TIMEOUT_MSEC
                 val input = DataInputStream(socket.getInputStream())
                 val buf = ByteArray(4)
                 val start = now().toEpochMilli()
@@ -60,17 +64,18 @@ class AspenAvionicsInterface : AvionicsInterface {
                 } while (altitude == INT_NAN || outsideTemp == INT_NAN &&
                     (now().toEpochMilli() - start) < SOCKET_TIMEOUT_MSEC)
             } catch (e: Exception) {
-                Log.e(TAG, "Connection error $e")
+                Log.e(TAG, "Socket connection error $e")
             } finally {
                 try {
                     if (!socket.isClosed) {
-                        Log.i(TAG, "Close socket")
+                        Log.i(TAG, "Closing socket")
                         socket.shutdownOutput()
                         socket.close()
                     }
                 } catch (e: Exception) {}
             }
         }
+
         return if (altitude != INT_NAN && outsideTemp != INT_NAN) {
             AvionicsData(altitude, outsideTemp)
         } else {
@@ -78,9 +83,10 @@ class AspenAvionicsInterface : AvionicsInterface {
         }
     }
 
-    private fun probeService(): Boolean {
+    private fun probeService(network: Network): Boolean {
         val client = OkHttpClient.Builder()
             .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .socketFactory(network.socketFactory)
             .build()
         val request = Request.Builder()
             .url("http://$ASPEN_IP:$ASPEN_WSDL_PORT/wdls/ping")

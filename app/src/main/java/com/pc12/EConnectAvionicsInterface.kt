@@ -1,5 +1,6 @@
 package com.pc12
 
+import android.net.Network
 import android.util.Log
 import okhttp3.*
 import java.util.concurrent.TimeUnit
@@ -22,16 +23,18 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
     private val WEBSOCKET_TIMEOUT_SEC = 3L
     private val NORMAL_CLOSURE_STATUS = 1000
     private val INT_NAN = -99
+
     private val responseLock = ReentrantLock()
     private val responseSignal = responseLock.newCondition()
     private var altitude = INT_NAN
     private var outsideTemp = INT_NAN
 
-    override suspend fun requestData(): AvionicsData? {
-        val url = getWebSocketAddr()
+    override suspend fun requestData(network: Network): AvionicsData? {
+        val url = getWebSocketAddr(network)
         if (url != null) {
             val client = OkHttpClient.Builder()
                 .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .socketFactory(network.socketFactory)
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -87,10 +90,11 @@ class EConnectAvionicsInterface : AvionicsInterface, WebSocketListener() {
         }
     }
 
-    private fun getWebSocketAddr(): String? {
+    private fun getWebSocketAddr(network: Network): String? {
         val BASE = "ws://$ECONNECT_IP/socket.io/1/websocket/"
         val client = OkHttpClient.Builder()
             .callTimeout(NETWORK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .socketFactory(network.getSocketFactory())
             .build()
         val request = Request.Builder()
             .url("http://$ECONNECT_IP/socket.io/1/?t=0")

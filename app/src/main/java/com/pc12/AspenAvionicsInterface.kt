@@ -25,13 +25,6 @@ class AspenAvionicsInterface : AvionicsInterface {
     private val INT_NAN = -99
     private val ARINC_SAT_LABEL = 213
     private val ARINC_ALTITUDE_LABEL = 203
-    private val LABELS = mapOf(1 to "Distance To Go", 2 to "Time To Go", 10 to "Latitude",
-        11 to "Longitude", 12 to "Ground Speed", 14 to "Magnetic Heading", 15 to "Wind Speed",
-        16 to "Wind Direction", 56 to "ETA", 75 to "Gross Weight", 152 to "Cabin Pressure",
-        203 to "Altitude", 204 to "Baro Altitude", 205 to "Indicated Airspeed",
-        210 to "True Airspeed", 213 to "Static Air Temperature", 244 to "Fuel Flow",
-        247 to "Fuel Flow", 312 to "Ground Speed", 314 to "True Heading", 315 to "Wind Speed",
-        316 to "Wind Direction", 320 to "Magnetic Heading")
 
     private var altitude = INT_NAN
     private var outsideTemp = INT_NAN
@@ -40,6 +33,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         if (probeService()) {
             val socket = Socket()
             try {
+                Log.i(TAG, "Connect socket")
                 socket.connect(InetSocketAddress(ASPEN_IP, ASPEN_SOCKET_PORT), SOCKET_TIMEOUT_MSEC)
                 val input = DataInputStream(socket.getInputStream())
                 val buf = ByteArray(4)
@@ -70,12 +64,13 @@ class AspenAvionicsInterface : AvionicsInterface {
             } finally {
                 try {
                     if (!socket.isClosed) {
+                        Log.i(TAG, "Close socket")
+                        socket.shutdownOutput()
                         socket.close()
                     }
                 } catch (e: Exception) {}
             }
         }
-
         return if (altitude != INT_NAN && outsideTemp != INT_NAN) {
             AvionicsData(altitude, outsideTemp)
         } else {
@@ -89,7 +84,8 @@ class AspenAvionicsInterface : AvionicsInterface {
             .build()
         val request = Request.Builder()
             .url("http://$ASPEN_IP:$ASPEN_WSDL_PORT/wdls/ping")
-            .addHeader("Authorization", "basic $CREDENTIALS")
+            .addHeader("Authorization", " basic $CREDENTIALS")
+            .addHeader("Accept", "application/json")
             .build()
 
         try {
@@ -113,7 +109,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         val label = ((buf[3].toInt() shr 6) and 0x03) * 100 +
                     ((buf[3].toInt() shr 3 and 0x07)) * 10 +
                     (buf[3].toInt() and 0x07) // octal to decimal
-        Log.i(TAG, "ARINC-429 label: $label (" + LABELS.get(label) + ")")
+        Log.i(TAG, "ARINC-429 label: $label")
 
         // Data field in bits 28 to 11. Data interpretation:
         // 1110...1 is (1/2 + 1/4 + 1/8 + 0/16 + ... + 1/2^18) * RANGE
@@ -121,7 +117,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         val data = ((buf[0].toInt() and 0x0F) shl 14) +
                    ((buf[1].toInt() shl 6) and 0x3FFF) +
                    ((buf[2].toInt() shr 2) and 0x3F)
-        val signBit = (buf[0].toInt() shr 7) and 0x01
+        val signBit = (buf[0].toInt() ushr 4) and 0x01
 
         if (label == ARINC_SAT_LABEL) {
             outsideTemp = signBit * -512 + (data.toFloat() / 0x40000.toFloat() * 512f).toInt()

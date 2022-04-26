@@ -22,7 +22,7 @@ data class UIState (
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
     private val TAG = FlightDataViewModel::class.qualifiedName
     private val REQUEST_DATA_PERIOD_MSEC = 5000L
-    private val REQUEST_DATA_RETRY_MSEC = 500L
+    private val REQUEST_DATA_RETRY_MSEC = 1000L
     private val ROUND_ROBIN_AVIONICS = arrayOf(SettingsStore.ASPEN_INTERFACE,
                                                SettingsStore.ECONNECT_INTERFACE,
                                                SettingsStore.GOGO_INTERFACE )

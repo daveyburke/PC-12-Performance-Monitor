@@ -93,7 +93,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            val TORQUE_MAXAGE = 60  // 1 min
+            val DATA_MAXAGE = 60  // 1 min
             val deltaIsaTemp = outsideTemp + (altitude + 500) / 1000 * 2 - 15
 
             val altitudeStr = if (avionicsInterface == "") "---" else altitude
@@ -104,9 +104,9 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
                 deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
                 else -> ""
             }
-            val torqueStr = if (torque.isNaN() || age > TORQUE_MAXAGE) "---" else torque
-            val fuelFlowStr = if (torque.isNaN() || age > TORQUE_MAXAGE || fuelFlow == 0) "---" else fuelFlow
-            val airspeedStr = if (torque.isNaN() || age > TORQUE_MAXAGE || airspeed == 0) "---" else airspeed
+            val torqueStr = if (torque.isNaN() || age > DATA_MAXAGE) "---" else torque
+            val fuelFlowStr = if (torque.isNaN() || age > DATA_MAXAGE || fuelFlow == 0) "---" else fuelFlow
+            val airspeedStr = if (torque.isNaN() || age > DATA_MAXAGE || airspeed == 0) "---" else airspeed
 
             val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
             var avionicsLabel = "Avionics Data"
@@ -116,7 +116,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             }
 
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
-            val statusColor = if (age > TORQUE_MAXAGE || torque.isNaN()) Color(200, 0, 0) else Color(30, 140, 100)
+            val statusColor = if (age > DATA_MAXAGE) Color(200, 0, 0) else Color(30, 140, 100)
 
             OutlinedTextField(
                 value = "ALT: $altitudeStr ft\nSAT: $outsideTempStr \u2103 $deltaIsaTempStr",
@@ -356,7 +356,9 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
-                    Row {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = "I agree to these terms & conditions ",
                             color = Color.White,

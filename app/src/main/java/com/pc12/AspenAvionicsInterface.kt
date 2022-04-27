@@ -115,7 +115,7 @@ class AspenAvionicsInterface : AvionicsInterface {
         val label = ((buf[3].toInt() shr 6) and 0x03) * 100 +
                     ((buf[3].toInt() shr 3 and 0x07)) * 10 +
                     (buf[3].toInt() and 0x07) // octal to decimal
-        Log.i(TAG, "ARINC-429 label: $label")
+        Log.i(TAG, "ARINC-429 label: $label (${labelToText(label)})")
 
         // Data field in bits 28 to 11. Data interpretation:
         // 1110...1 is (1/2 + 1/4 + 1/8 + 0/16 + ... + 1/2^18) * RANGE
@@ -131,6 +131,35 @@ class AspenAvionicsInterface : AvionicsInterface {
         } else if (label == ARINC_ALTITUDE_LABEL) {
             altitude = signBit * -131072 + (data.toFloat() / 0x40000.toFloat() * 131072f).toInt()
             Log.i(TAG, "ARINC-429 altitude: $altitude")
+        }
+    }
+
+    private fun labelToText(label: Int) : String {
+        return when (label) {
+            1 -> "Distance To Go"
+            2 -> "Time To Go"
+            10 -> "Latitude"
+            11 -> "Longitude"
+            12 -> "Ground Speed"
+            14 -> "Magnetic Heading"
+            15 -> "Wind Speed"
+            16 -> "Wind Direction"
+            56 -> "ETA"
+            75 -> "Gross Weight"
+            152 -> "Cabin Pressure"
+            203 -> "Altitude"
+            204 -> "Baro Altitude"
+            205 -> "Indicated Airspeed"
+            210 -> "True Airspeed"
+            213 -> "Static Air Temperature"
+            244 -> "Fuel Flow"
+            247 -> "Fuel Flow"
+            312 -> "Ground Speed"
+            314 -> "True Heading"
+            315 -> "Wind Speed"
+            316 -> "Wind Direction"
+            320 -> "Magnetic Heading"
+            else -> "Unknown"
         }
     }
 }

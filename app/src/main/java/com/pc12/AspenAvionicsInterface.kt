@@ -61,7 +61,7 @@ class AspenAvionicsInterface : AvionicsInterface {
                         Log.e(TAG, "Invalid length/padding")
                         break
                     }
-                } while (altitude == INT_NAN || outsideTemp == INT_NAN &&
+                } while ((altitude == INT_NAN || outsideTemp == INT_NAN) &&
                     (now().toEpochMilli() - start) < SOCKET_TIMEOUT_MSEC)
             } catch (e: Exception) {
                 Log.e(TAG, "Socket connection error $e")
@@ -135,7 +135,7 @@ class AspenAvionicsInterface : AvionicsInterface {
     }
 
     private fun labelToText(label: Int) : String {
-        return when (label) {
+        return when (label) {  // from ARINC-429 spec, not confirmed
             1 -> "Distance To Go"
             2 -> "Time To Go"
             10 -> "Latitude"
@@ -145,7 +145,14 @@ class AspenAvionicsInterface : AvionicsInterface {
             15 -> "Wind Speed"
             16 -> "Wind Direction"
             56 -> "ETA"
+            74 -> "Zero Fuel Weight"
             75 -> "Gross Weight"
+            113 -> "Spare"
+            114 -> "Desired Track"
+            115 -> "Waypoint Bearing"
+            125 -> "Universal Time Coordinated (UTC)"
+            147 -> "Discrete Status 4 EFIS"
+            150 -> "Universal Time Constant (UTC)"
             152 -> "Cabin Pressure"
             203 -> "Altitude"
             204 -> "Baro Altitude"
@@ -154,11 +161,25 @@ class AspenAvionicsInterface : AvionicsInterface {
             213 -> "Static Air Temperature"
             244 -> "Fuel Flow"
             247 -> "Fuel Flow"
+            251 -> "Distance to Go"
+            252 -> "Time to Go"
+            260 -> "Date"
+            303 -> "Application Dependent"
+            304 -> "Application Dependent"
+            305 -> "Application Dependent"
+            306 -> "Application Dependent"
+            307 -> "Application Dependent"
+            310 -> "Present Position - Latitude"
+            311 -> "Present Position - Longitude"
             312 -> "Ground Speed"
+            313 -> "Track Angle True"
             314 -> "True Heading"
             315 -> "Wind Speed"
             316 -> "Wind Direction"
             320 -> "Magnetic Heading"
+            351 -> "Maintenance Data"
+            352 -> "Maintenance Data"
+            371 -> "General Aviation Equipment Identifier"
             else -> "Unknown"
         }
     }

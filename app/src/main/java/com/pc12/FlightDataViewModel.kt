@@ -139,20 +139,21 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     }
 
     private fun initWiFiTransport() : Boolean {
-        if (wifiTransport == null) {
-            val latch = CountDownLatch(1)
-            val rb = NetworkRequest.Builder()
-            rb.addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.requestNetwork(rb.build(), object : NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    if (latch.count == 0L) return
-                    wifiTransport = network
-                    latch.countDown()
-                }
-            })
-            latch.await(1000, TimeUnit.MILLISECONDS)
+        val latch = CountDownLatch(1)
+        val rb = NetworkRequest.Builder()
+        rb.addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+        val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cb : NetworkCallback = object : NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (latch.count == 0L) return
+                wifiTransport = network
+                latch.countDown()
+            }
         }
+        cm.requestNetwork(rb.build(), cb)
+        latch.await(1000, TimeUnit.MILLISECONDS)
+        cm.unregisterNetworkCallback(cb)
+
         return wifiTransport != null
     }
 }

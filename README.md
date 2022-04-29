@@ -35,6 +35,6 @@ for authoritative engine settings.
 
 ---
 
-For Android developers: this app demonstrates "Modern Android Development" using the Kotlin, Jetpack Compose, with ViewModel, DataStore, and coroutines.
+For Android developers: this app demonstrates "Modern Android Development" using Kotlin, Jetpack Compose, with ViewModel, DataStore, and coroutines.
 
 

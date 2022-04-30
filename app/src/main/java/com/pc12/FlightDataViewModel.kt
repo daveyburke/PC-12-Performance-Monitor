@@ -73,7 +73,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
-            registerWiFiNatworkCallback()
+            registerWiFiNetworkCallback()
             while (isActive) {
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
@@ -139,16 +139,16 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         return ROUND_ROBIN_AVIONICS[roundRobinAvionicsIndex]
     }
 
-    private fun registerWiFiNatworkCallback() {
+    private fun registerWiFiNetworkCallback() {
         if (wifiNetworkCallback == null) {
             wifiNetworkCallback = object : NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    Log.i(TAG, "Network available: " + network.toString())
+                    Log.i(TAG, "Network available: $network")
                     wifiNetwork = network
                 }
                 override fun onLost(network: Network) {
                     if (network == wifiNetwork) {
-                        Log.i(TAG, "Network lost: " + network.toString())
+                        Log.i(TAG, "Network lost: $network")
                         wifiNetwork = null
                     }
                 }

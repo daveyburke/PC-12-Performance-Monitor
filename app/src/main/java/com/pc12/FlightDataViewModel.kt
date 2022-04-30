@@ -17,8 +17,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import java.lang.Float.NaN
 import java.time.Instant.now
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 data class UIState (
     val avionicsData: AvionicsData = AvionicsData(0, 0),
@@ -37,30 +35,31 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private val theApp = application
     private val settingsStore = SettingsStore(application)
-    private var wifiTransport: Network? = null
-    private var isNetworkRunning : Boolean = false
+    private var isNetworkJobRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
     private var roundRobinAvionicsIndex = 0
     private var lastRequestSuccessful = false
     private var lastSuccessTime: Long = 0
+    private var wifiNetwork: Network? = null
+    private var wifiNetworkCallback: NetworkCallback? = null
 
     var uiState by mutableStateOf(UIState())
         private set
 
     fun startNetworkRequests() {
-        if (!isNetworkRunning && userAgreedTerms) {
+        if (!isNetworkJobRunning && userAgreedTerms) {
             Log.i(TAG, "Starting network I/O coroutine...")
             networkRequestLoop()
-            isNetworkRunning = true
+            isNetworkJobRunning = true
         }
     }
 
     fun stopNetworkRequests() {
-        if (isNetworkRunning) {
+        if (isNetworkJobRunning) {
             Log.i(TAG, "Stopping network I/O coroutine...")
             networkJob.cancel()
-            isNetworkRunning = false
+            isNetworkJobRunning = false
         }
     }
 
@@ -74,6 +73,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
+            registerWiFiNatworkCallback()
             while (isActive) {
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
@@ -92,10 +92,10 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                 val data : AvionicsData?
                 withContext(Dispatchers.IO) {
-                    data = if (initWiFiTransport()) {
-                        avionicsInterface.requestData(wifiTransport!!)
+                    data = if (wifiNetwork != null) {
+                        avionicsInterface.requestData(wifiNetwork!!)
                     } else {
-                        Log.e(TAG, "Unable to get Wi-Fi transport")
+                        Log.e(TAG, "Unable to get Wi-Fi network")
                         null
                     }
                 }  // end I/O CoroutineScope
@@ -124,6 +124,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     delay(REQUEST_DATA_RETRY_MSEC)
                 }
             }
+            unregisterWiFiNetworkCallback()
         }
     }
 
@@ -138,22 +139,30 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         return ROUND_ROBIN_AVIONICS[roundRobinAvionicsIndex]
     }
 
-    private fun initWiFiTransport() : Boolean {
-        val latch = CountDownLatch(1)
-        val rb = NetworkRequest.Builder()
-        rb.addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-        val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val cb : NetworkCallback = object : NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                if (latch.count == 0L) return
-                wifiTransport = network
-                latch.countDown()
+    private fun registerWiFiNatworkCallback() {
+        if (wifiNetworkCallback == null) {
+            wifiNetworkCallback = object : NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    Log.i(TAG, "Network available: " + network.toString())
+                    wifiNetwork = network
+                }
+                override fun onLost(network: Network) {
+                    if (network == wifiNetwork) {
+                        Log.i(TAG, "Network lost: " + network.toString())
+                        wifiNetwork = null
+                    }
+                }
             }
+            val rb = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.requestNetwork(rb.build(), wifiNetworkCallback as NetworkCallback)
         }
-        cm.requestNetwork(rb.build(), cb)
-        latch.await(1000, TimeUnit.MILLISECONDS)
-        cm.unregisterNetworkCallback(cb)
+    }
 
-        return wifiTransport != null
+    private fun unregisterWiFiNetworkCallback() {
+        if (wifiNetworkCallback != null) {
+            val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.unregisterNetworkCallback(wifiNetworkCallback as NetworkCallback)
+        }
     }
 }

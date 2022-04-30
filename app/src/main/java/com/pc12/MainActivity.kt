@@ -349,8 +349,8 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
                         "THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine " +
                              "torque. Always refer to the manufacturer's QRH or AFM for " +
                              "authoritative engine settings.\n\n" +
-                             "NO WARRANTY: This app is provided 'as is', without warranty. There is no " +
-                             "guarantee that it is free from mistakes or errors. Use at your own risk.\n\n" +
+                             "NO WARRANTY: This app is provided as is. No guarantee is made " +
+                             "that it is free from mistakes or errors. Use at your own risk.\n\n" +
                              "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +
                              "be held responsible for any engine or aircraft damage, " +
                              "consequential / indirect / special damages, or loss of profit or revenue " +

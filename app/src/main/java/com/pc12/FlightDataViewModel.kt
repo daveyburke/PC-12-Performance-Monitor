@@ -39,7 +39,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
     private var roundRobinAvionicsIndex = 0
-    private var lastRequestSuccessful = false
+    private var lastRequestSuccessful = true
     private var lastSuccessTime: Long = 0
     private var wifiNetwork: Network? = null
     private var wifiNetworkCallback: NetworkCallback? = null

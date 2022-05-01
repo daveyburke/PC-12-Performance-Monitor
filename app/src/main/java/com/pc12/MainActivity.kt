@@ -246,7 +246,7 @@ fun AvionicsInterfaceSettings(onClose: () -> Unit) {
     val context = LocalContext.current
     val settingsStore = remember { SettingsStore(context)  }
     val avionicsInterfaceFlow = settingsStore.avionicsInterfaceFlow.collectAsState(
-        initial = SettingsStore.ASPEN_INTERFACE)
+        initial = SettingsStore.AUTO_DETECT_INTERFACE)
     val optionItems = listOf(
         SettingsStore.avionicsInterfaceToString(SettingsStore.ASPEN_INTERFACE),
         SettingsStore.avionicsInterfaceToString(SettingsStore.ECONNECT_INTERFACE),

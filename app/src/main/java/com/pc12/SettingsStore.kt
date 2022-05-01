@@ -76,7 +76,7 @@ class SettingsStore(private val context: Context) {
 
     val avionicsInterfaceFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[AVIONICS_INTERFACE] ?: ASPEN_INTERFACE
+            preferences[AVIONICS_INTERFACE] ?: AUTO_DETECT_INTERFACE
         }
 
     suspend fun saveAvionicsInterface(avionics: Int) {

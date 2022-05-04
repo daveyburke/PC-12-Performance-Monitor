@@ -1,7 +1,7 @@
 # PC-12 Performance Monitor
 
 Android app for pilots that monitors altitude and outside air temp from avionics to automatically calculate max cruise engine torque, fuel flow, and true airspeed for Pilatus PC-12NG / NGX aircraft. Works with the following Wi-Fi access points / gateways:
-* Aspen CG-100
+* Aspen CG-100 ("Connected Flight Deck")
 * Emteq eConnect
 * Gogo
 

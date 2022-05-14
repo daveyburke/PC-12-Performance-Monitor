@@ -163,6 +163,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         if (wifiNetworkCallback != null) {
             val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             cm.unregisterNetworkCallback(wifiNetworkCallback as NetworkCallback)
+            wifiNetworkCallback = null
         }
     }
 }

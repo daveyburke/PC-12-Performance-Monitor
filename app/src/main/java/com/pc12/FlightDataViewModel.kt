@@ -50,8 +50,10 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     fun startNetworkRequests() {
         if (!isNetworkJobRunning && userAgreedTerms) {
             Log.i(TAG, "Starting network I/O coroutine...")
+            registerWiFiNetworkCallback()
             networkRequestLoop()
             isNetworkJobRunning = true
+
         }
     }
 
@@ -59,6 +61,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         if (isNetworkJobRunning) {
             Log.i(TAG, "Stopping network I/O coroutine...")
             networkJob.cancel()
+            unregisterWiFiNetworkCallback()
             isNetworkJobRunning = false
         }
     }
@@ -73,7 +76,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
-            registerWiFiNetworkCallback()
             while (isActive) {
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
@@ -124,7 +126,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     delay(REQUEST_DATA_RETRY_MSEC)
                 }
             }
-            unregisterWiFiNetworkCallback()
         }
     }
 
@@ -164,6 +165,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
             val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             cm.unregisterNetworkCallback(wifiNetworkCallback as NetworkCallback)
             wifiNetworkCallback = null
+            wifiNetwork = null
         }
     }
 }

@@ -113,10 +113,16 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             if (avionicsInterface != "") {
                 avionicsLabel += " - $avionicsInterface"
                 if (age > 0) avionicsLabel += " ($ageStr old)"
+            } else {
+                avionicsLabel += " - Searching..."
             }
 
+            val statusColor = if (age > DATA_MAXAGE || avionicsInterface == "") {
+                Color(200, 0, 0)
+            } else {
+                Color(30, 140, 100)
+            }
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
-            val statusColor = if (age > DATA_MAXAGE) Color(200, 0, 0) else Color(30, 140, 100)
 
             OutlinedTextField(
                 value = "ALT: $altitudeStr ft\nSAT: $outsideTempStr \u2103 $deltaIsaTempStr",

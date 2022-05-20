@@ -104,18 +104,10 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
                 deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
                 else -> ""
             }
+
             val torqueStr = if (torque.isNaN() || age > DATA_MAXAGE) "---" else torque
             val fuelFlowStr = if (torque.isNaN() || age > DATA_MAXAGE || fuelFlow == 0) "---" else fuelFlow
             val airspeedStr = if (torque.isNaN() || age > DATA_MAXAGE || airspeed == 0) "---" else airspeed
-
-            val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
-            var avionicsLabel = "Avionics Data"
-            if (avionicsInterface != "") {
-                avionicsLabel += " - $avionicsInterface"
-                if (age > 0) avionicsLabel += " ($ageStr old)"
-            } else {
-                avionicsLabel += " - Searching..."
-            }
 
             val statusColor = if (age > DATA_MAXAGE || avionicsInterface == "") {
                 Color(200, 0, 0)
@@ -127,7 +119,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             OutlinedTextField(
                 value = "ALT: $altitudeStr ft\nSAT: $outsideTempStr \u2103 $deltaIsaTempStr",
                 onValueChange = { },
-                label = { Text(avionicsLabel) },
+                label = { Text(getAvionicsLabel(avionicsInterface, age)) },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     disabledTextColor = textColor,
@@ -155,6 +147,20 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             )
         }
     }
+}
+
+fun getAvionicsLabel(avionicsInterface: String, age: Long): String {
+    var avionicsLabel = "Avionics Data"
+    val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
+
+    if (avionicsInterface != "") {
+        avionicsLabel += " - $avionicsInterface"
+        if (age > 0) avionicsLabel += " ($ageStr old)"
+    } else {
+        avionicsLabel += " - Searching..."
+    }
+
+    return avionicsLabel
 }
 
 @Composable

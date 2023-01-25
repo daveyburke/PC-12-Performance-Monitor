@@ -77,6 +77,12 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
             while (isActive) {
+                if (wifiNetwork == null) {
+                    Log.w(TAG, "Wi-Fi network not ready")
+                    delay(REQUEST_DATA_RETRY_MSEC)
+                    continue
+                }
+
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
                     Log.d(TAG, "Auto-detecting avionics interface")
@@ -91,15 +97,9 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                 Log.i(TAG, "Requesting data via " +
                         SettingsStore.avionicsInterfaceToString(interfaceType))
-
                 val data : AvionicsData?
                 withContext(Dispatchers.IO) {
-                    data = if (wifiNetwork != null) {
-                        avionicsInterface.requestData(wifiNetwork!!)
-                    } else {
-                        Log.e(TAG, "Unable to get Wi-Fi network")
-                        null
-                    }
+                    data = avionicsInterface.requestData(wifiNetwork!!)
                 }  // end I/O CoroutineScope
 
                 if (data != null) {

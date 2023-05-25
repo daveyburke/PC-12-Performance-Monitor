@@ -15,16 +15,66 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import java.lang.Float.NaN
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant.now
 
-data class UIState (
-    val avionicsData: AvionicsData = AvionicsData(0, 0),
-    val perfData: PerfData = PerfData(NaN, 0, 0),
-    val avionicsInterface: String = "",
-    val age: Long = 0
+private const val MISSING_DATA = "---"
+private const val DATA_MAX_AGE = 60 // 1min
+
+fun UIState(
+    avionicsData: AvionicsData,
+    perfData: PerfData,
+    avionicsInterface: String,
+    age: Long
+): UIState {
+    val deltaIsaTemp = avionicsData.outsideTemp + (avionicsData.altitude + 500) / 1000 * 2 - 15
+
+    val altitudeStr =
+        if (avionicsInterface == "") MISSING_DATA else avionicsData.altitude.toString()
+    val outsideTempStr =
+        if (avionicsInterface == "") MISSING_DATA else avionicsData.outsideTemp.toString()
+    val deltaIsaTempStr = when {
+        avionicsInterface == "" -> ""
+        deltaIsaTemp > 0 -> "(ISA +$deltaIsaTemp)"
+        deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
+        else -> ""
+    }
+
+    val torqueStr =
+        if (perfData.torque.isNaN() || age > DATA_MAX_AGE) MISSING_DATA else perfData.torque.toString()
+    val fuelFlowStr =
+        if (perfData.torque.isNaN() || age > DATA_MAX_AGE || perfData.fuelFlow == 0) MISSING_DATA else perfData.fuelFlow.toString()
+    val airspeedStr =
+        if (perfData.torque.isNaN() || age > DATA_MAX_AGE || perfData.airspeed == 0) MISSING_DATA else perfData.airspeed.toString()
+
+    val isOldData = isDataOld(age, avionicsInterface)
+    return UIState(
+        altitudeStr,
+        outsideTempStr,
+        deltaIsaTempStr,
+        torqueStr,
+        fuelFlowStr,
+        airspeedStr,
+        getAvionicsLabel(age, avionicsInterface),
+        isOldData
+    )
+}
+
+data class UIState(
+    val altitude: String = MISSING_DATA,
+    val outsideTemp: String = MISSING_DATA,
+    val deltaIsaTemp: String = "",
+    val torqueStr: String = MISSING_DATA,
+    val fuelFlowStr: String = MISSING_DATA,
+    val airspeed: String = MISSING_DATA,
+    val avionicsLabel: String = "",
+    val isDataOld: Boolean = true
 )
 
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
@@ -71,7 +121,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     continue
                 }
 
-                var interfaceType = settingsStore.avionicsInterfaceFlow.first()
+                val interfaceType = settingsStore.avionicsInterfaceFlow.first()
                 val avionicsInterface = when (interfaceType) {
                     SettingsStore.ASPEN_INTERFACE -> AspenAvionicsInterface()
                     SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
@@ -79,8 +129,8 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     else -> AspenAvionicsInterface()  // should never get here
                 }
 
-                Log.i(TAG, "Requesting data via " +
-                        SettingsStore.avionicsInterfaceToString(interfaceType))
+                val avionicsInterfaceStr = SettingsStore.avionicsInterfaceToString(interfaceType)
+                Log.i(TAG, "Requesting data via $avionicsInterfaceStr")
                 val data : AvionicsData?
                 withContext(Dispatchers.IO) {
                     data = avionicsInterface.requestData(wifiNetwork!!)
@@ -96,16 +146,21 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
                     val perfData = PerfCalculator.compute(data, aircraftType, weight)
 
-                    uiState = uiState.copy(
-                        avionicsData = data,
-                        perfData = perfData,
-                        avionicsInterface = SettingsStore.avionicsInterfaceToString(interfaceType),
-                        age = 0)
+                    uiState = UIState(
+                        data,
+                        perfData,
+                        avionicsInterfaceStr,
+                        0
+                    )
                     lastSuccessTime = now().epochSecond
                     lastRequestSuccessful = true
                     delay(REQUEST_DATA_PERIOD_MSEC)
                 } else {
-                    uiState = uiState.copy(age = now().epochSecond - lastSuccessTime)
+                    val age = now().epochSecond - lastSuccessTime
+                    uiState = uiState.copy(
+                        avionicsLabel = getAvionicsLabel(age, avionicsInterfaceStr),
+                        isDataOld = isDataOld(age, avionicsInterfaceStr)
+                    )
                     lastRequestSuccessful = false
                     delay(REQUEST_DATA_RETRY_MSEC)
                 }
@@ -175,3 +230,22 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         }
     }
 }
+
+private fun getAvionicsLabel(age: Long, avionicsInterface: String): String {
+    var avionicsLabel = ""
+    val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
+
+    if (avionicsInterface != "") {
+        avionicsLabel += " - $avionicsInterface"
+        if (age > 0) avionicsLabel += " ($ageStr old)"
+    } else {
+        avionicsLabel += " - Searching..."
+    }
+
+    return avionicsLabel
+}
+
+private fun isDataOld(
+    age: Long,
+    avionicsInterface: String
+) = age > DATA_MAX_AGE || avionicsInterface == ""

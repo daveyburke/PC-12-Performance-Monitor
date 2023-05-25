@@ -1,5 +1,6 @@
 package com.pc12
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -82,40 +83,17 @@ fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
         systemUiController.setNavigationBarColor(color = backgroundColor)
     }
 
-    PerformanceDataDisplay(flightDataViewModel.uiState.avionicsData.altitude,
-                           flightDataViewModel.uiState.avionicsData.outsideTemp,
-                           flightDataViewModel.uiState.perfData.torque,
-                           flightDataViewModel.uiState.perfData.fuelFlow,
-                           flightDataViewModel.uiState.perfData.airspeed,
-                           flightDataViewModel.uiState.avionicsInterface,
-                           flightDataViewModel.uiState.age)
+    PerformanceDataDisplay(flightDataViewModel.uiState)
 }
 
 @Composable
-fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelFlow: Int,
-                           airspeed: Int, avionicsInterface: String, age: Long) {
+fun PerformanceDataDisplay(uiState: UIState) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
         Column {
-            val DATA_MAXAGE = 60  // 1 min
-            val deltaIsaTemp = outsideTemp + (altitude + 500) / 1000 * 2 - 15
-
-            val altitudeStr = if (avionicsInterface == "") "---" else altitude
-            val outsideTempStr = if (avionicsInterface == "") "---" else outsideTemp
-            val deltaIsaTempStr = when {
-                avionicsInterface == "" -> ""
-                deltaIsaTemp > 0 -> "(ISA +$deltaIsaTemp)"
-                deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
-                else -> ""
-            }
-
-            val torqueStr = if (torque.isNaN() || age > DATA_MAXAGE) "---" else torque
-            val fuelFlowStr = if (torque.isNaN() || age > DATA_MAXAGE || fuelFlow == 0) "---" else fuelFlow
-            val airspeedStr = if (torque.isNaN() || age > DATA_MAXAGE || airspeed == 0) "---" else airspeed
-
-            val statusColor = if (age > DATA_MAXAGE || avionicsInterface == "") {
+            val statusColor = if (uiState.isDataOld) {
                 Color(200, 0, 0)
             } else {
                 Color(30, 140, 100)
@@ -123,9 +101,9 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             val textColor = (if (isSystemInDarkTheme()) Color.White else Color.Black)
 
             OutlinedTextField(
-                value = "ALT: $altitudeStr ft\nSAT: $outsideTempStr \u2103 $deltaIsaTempStr",
+                value = "ALT: ${uiState.altitude} ft\nSAT: ${uiState.outsideTemp} \u2103 ${uiState.deltaIsaTemp}",
                 onValueChange = { },
-                label = { Text(getAvionicsLabel(avionicsInterface, age)) },
+                label = { Text("Avionics Data ${uiState.avionicsLabel}") },
                 enabled = false,
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     disabledTextColor = textColor,
@@ -138,7 +116,7 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
             Spacer(modifier = Modifier.height(50.dp))
 
             OutlinedTextField(
-                value = "TRQ: $torqueStr psi\nFF: $fuelFlowStr lb/h\nTAS: $airspeedStr kts",
+                value = "TRQ: ${uiState.torqueStr} psi\nFF: ${uiState.fuelFlowStr} lb/h\nTAS: ${uiState.airspeed} kts",
                 onValueChange = { },
                 label = {
                     Text("Maximum Cruise Power")
@@ -155,19 +133,6 @@ fun PerformanceDataDisplay(altitude: Int, outsideTemp: Int, torque: Float, fuelF
     }
 }
 
-fun getAvionicsLabel(avionicsInterface: String, age: Long): String {
-    var avionicsLabel = "Avionics Data"
-    val ageStr = if (age > 60) (age / 60).toString() + "m" else "$age" + "s"
-
-    if (avionicsInterface != "") {
-        avionicsLabel += " - $avionicsInterface"
-        if (age > 0) avionicsLabel += " ($ageStr old)"
-    } else {
-        avionicsLabel += " - Searching..."
-    }
-
-    return avionicsLabel
-}
 
 @Composable
 fun OverflowMenu() {
@@ -478,11 +443,12 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true,  heightDp = 600, widthDp = 400)
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Light theme", heightDp = 600, widthDp = 400)
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark theme", heightDp = 600, widthDp = 400)
 @Composable
 fun DefaultPreview() {
     PC12PerformanceMonitorTheme {
         OverflowMenu()
-        PerformanceDataDisplay(24000, -32, 30.1f, 300, 275,"Gogo", 5)
+        PerformanceDataDisplay(UIState("24000", "-32", "30.1f", "300", "275", "5", "Gogo", false))
     }
 }

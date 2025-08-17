@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -19,6 +20,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +32,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val flightDataViewModel by viewModels<FlightDataViewModel>()
+    private var userAgreedTerms = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,9 +44,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    if (!flightDataViewModel.getUserAgreedTerms()) {
+                    if (!userAgreedTerms) {
                         WarningDialog({  // onProceed
-                                flightDataViewModel.setUserAgreedTerms()
+                                userAgreedTerms = true
                                 flightDataViewModel.startNetworkRequests()
                             },{  // onCancel
                                 finish()
@@ -63,7 +67,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        flightDataViewModel.startNetworkRequests()
+        if (userAgreedTerms) {
+            flightDataViewModel.startNetworkRequests()
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
@@ -230,6 +236,89 @@ fun OverflowMenu() {
 }
 
 @Composable
+fun AvionicsInterfaceSettings(onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val settingsStore = remember { SettingsStore(context) }
+    val avionicsInterfaceFlow = settingsStore.avionicsInterfaceFlow.collectAsState(
+        initial = SettingsStore.ASPEN_INTERFACE)
+
+    val networkSsidFlow = settingsStore.networkSsidFlow.collectAsState(initial = "")
+    val networkPasswordFlow = settingsStore.networkPasswordFlow.collectAsState(initial = "")
+
+    var ssid by remember(networkSsidFlow.value) { mutableStateOf(networkSsidFlow.value) }
+    var password by remember(networkPasswordFlow.value) { mutableStateOf(networkPasswordFlow.value) }
+
+    val optionItems = listOf(
+        SettingsStore.avionicsInterfaceToString(SettingsStore.ASPEN_INTERFACE),
+        SettingsStore.avionicsInterfaceToString(SettingsStore.ECONNECT_INTERFACE),
+        SettingsStore.avionicsInterfaceToString(SettingsStore.GOGO_INTERFACE))
+
+    // A custom AlertDialog is now used to accommodate the new text fields
+    AlertDialog(
+        title = {
+            Text(text = "Avionics Interface")
+        },
+        text = {
+            Column {
+                // Radio buttons for selecting the interface type
+                optionItems.forEachIndexed { index, item ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = { scope.launch { settingsStore.saveAvionicsInterface(index) } })
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = index == avionicsInterfaceFlow.value,
+                            onClick = { scope.launch { settingsStore.saveAvionicsInterface(index) } }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = item)
+                    }
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+                Text("Auto connect app (optional)")
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Text field for Wi-Fi Name (SSID)
+                OutlinedTextField(
+                    value = ssid,
+                    onValueChange = { ssid = it },
+                    label = { Text("Wi-Fi Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Text field for Wi-Fi Password
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Wi-Fi Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    scope.launch {
+                        settingsStore.saveNetworkSsid(ssid)
+                        settingsStore.saveNetworkPassword(password)
+                    }
+                    onClose()
+                }) {
+                Text("OK")
+            }
+        },
+        onDismissRequest = { onClose() }
+    )
+}
+
+@Composable
 fun AircraftTypeSettings(onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -246,30 +335,6 @@ fun AircraftTypeSettings(onClose: () -> Unit) {
         {
             scope.launch {
                 settingsStore.saveAircraftType(it)
-            }
-        },
-        onClose = { onClose() }
-    )
-}
-
-@Composable
-fun AvionicsInterfaceSettings(onClose: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val settingsStore = remember { SettingsStore(context)  }
-    val avionicsInterfaceFlow = settingsStore.avionicsInterfaceFlow.collectAsState(
-        initial = SettingsStore.AUTO_DETECT_INTERFACE)
-    val optionItems = listOf(
-        SettingsStore.avionicsInterfaceToString(SettingsStore.ASPEN_INTERFACE),
-        SettingsStore.avionicsInterfaceToString(SettingsStore.ECONNECT_INTERFACE),
-        SettingsStore.avionicsInterfaceToString(SettingsStore.GOGO_INTERFACE),
-        SettingsStore.avionicsInterfaceToString(SettingsStore.AUTO_DETECT_INTERFACE))
-
-    SelectOptionsDialog("Avionics Interface", optionItems, avionicsInterfaceFlow.value,
-        onSelected =
-        {
-            scope.launch {
-                settingsStore.saveAvionicsInterface(it)
             }
         },
         onClose = { onClose() }

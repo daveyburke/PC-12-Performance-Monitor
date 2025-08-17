@@ -7,7 +7,9 @@ import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.wifi.WifiNetworkSpecifier
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -29,16 +31,11 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private val TAG = FlightDataViewModel::class.qualifiedName
     private val REQUEST_DATA_PERIOD_MSEC = 5000L
     private val REQUEST_DATA_RETRY_MSEC = 1000L
-    private val ROUND_ROBIN_AVIONICS = arrayOf(SettingsStore.ASPEN_INTERFACE,
-                                               SettingsStore.ECONNECT_INTERFACE,
-                                               SettingsStore.GOGO_INTERFACE )
 
     private val theApp = application
     private val settingsStore = SettingsStore(application)
     private var isNetworkJobRunning : Boolean = false
     private lateinit var networkJob : Job
-    private var userAgreedTerms = false
-    private var roundRobinAvionicsIndex = 0
     private var lastRequestSuccessful = true
     private var lastSuccessTime: Long = 0
     private var wifiNetwork: Network? = null
@@ -48,9 +45,8 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         private set
 
     fun startNetworkRequests() {
-        if (!isNetworkJobRunning && userAgreedTerms) {
+        if (!isNetworkJobRunning) {
             Log.i(TAG, "Starting network I/O coroutine...")
-            registerWiFiNetworkCallback()
             networkRequestLoop()
             isNetworkJobRunning = true
 
@@ -61,21 +57,13 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
         if (isNetworkJobRunning) {
             Log.i(TAG, "Stopping network I/O coroutine...")
             networkJob.cancel()
-            unregisterWiFiNetworkCallback()
             isNetworkJobRunning = false
         }
     }
 
-    fun setUserAgreedTerms() {
-        userAgreedTerms = true
-    }
-
-    fun getUserAgreedTerms() : Boolean {
-        return userAgreedTerms
-    }
-
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
+            registerWiFiNetworkCallback()
             while (isActive) {
                 if (wifiNetwork == null) {
                     Log.w(TAG, "Wi-Fi network not ready")
@@ -84,10 +72,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                 }
 
                 var interfaceType = settingsStore.avionicsInterfaceFlow.first()
-                if (interfaceType == SettingsStore.AUTO_DETECT_INTERFACE) {
-                    Log.d(TAG, "Auto-detecting avionics interface")
-                    interfaceType = autoDetectAvionicsInterfaceType()
-                }
                 val avionicsInterface = when (interfaceType) {
                     SettingsStore.ASPEN_INTERFACE -> AspenAvionicsInterface()
                     SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
@@ -126,25 +110,20 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                     delay(REQUEST_DATA_RETRY_MSEC)
                 }
             }
+            unregisterWiFiNetworkCallback()
         }
     }
 
-    private fun autoDetectAvionicsInterfaceType(): Int {
-        // In auto mode, we just round-robin across avionics interfaces until one works,
-        // then stick with it until it doesn't
-        if (!lastRequestSuccessful) {
-            if (++roundRobinAvionicsIndex == ROUND_ROBIN_AVIONICS.size) {
-                roundRobinAvionicsIndex = 0
-            }
-        }
-        return ROUND_ROBIN_AVIONICS[roundRobinAvionicsIndex]
-    }
-
-    private fun registerWiFiNetworkCallback() {
+    private suspend fun registerWiFiNetworkCallback() {
         if (wifiNetworkCallback == null) {
             wifiNetworkCallback = object : NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     Log.i(TAG, "Network available: $network")
+                    Toast.makeText(
+                        theApp,
+                        "Connected to network",
+                        Toast.LENGTH_LONG
+                    ).show()
                     wifiNetwork = network
                 }
                 override fun onLost(network: Network) {
@@ -153,8 +132,35 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
                         wifiNetwork = null
                     }
                 }
+                override fun onUnavailable() {
+                    Log.e(TAG, "Network onUnavailable")
+                    Toast.makeText(
+                        theApp,
+                        "Could not connect to network",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
+
             val rb = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+
+            // If user has set an app-specific Wi-Fi network then add this to request
+            val networkSsid = settingsStore.networkSsidFlow.first()
+            val networkPassword = settingsStore.networkPasswordFlow.first()
+            if (!networkSsid.isEmpty()) {
+                Log.i(TAG, "Specific network requested: $networkSsid")
+                Toast.makeText(
+                    theApp,
+                    "Connecting to $networkSsid",
+                    Toast.LENGTH_LONG
+                ).show()
+                val specifier = WifiNetworkSpecifier.Builder()
+                    .setSsid(networkSsid)
+                    .setWpa2Passphrase(networkPassword)
+                    .build()
+                rb.setNetworkSpecifier(specifier)
+            }
+
             val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             cm.requestNetwork(rb.build(), wifiNetworkCallback as NetworkCallback)
         }

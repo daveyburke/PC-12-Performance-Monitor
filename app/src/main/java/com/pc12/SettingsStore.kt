@@ -6,6 +6,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -17,7 +18,9 @@ class SettingsStore(private val context: Context) {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
         val AIRCRAFT_TYPE = intPreferencesKey("aircraft_type")
         val AVIONICS_INTERFACE = intPreferencesKey("avionics_interface")
-        val AIRCRAFT_WEIGHT= intPreferencesKey("aircraft_weight")
+        val AIRCRAFT_WEIGHT = intPreferencesKey("aircraft_weight")
+        val NETWORK_SSID = stringPreferencesKey("network_ssid")
+        val NETWORK_PASSWORD = stringPreferencesKey("network_password")
 
         const val PC_12_47E_MSN_1001_1942_4_Blade: Int = 0
         const val PC_12_47E_MSN_1576_1942_5_Blade: Int = 1
@@ -26,7 +29,6 @@ class SettingsStore(private val context: Context) {
         const val ASPEN_INTERFACE: Int = 0
         const val ECONNECT_INTERFACE: Int = 1
         const val GOGO_INTERFACE: Int = 2
-        const val AUTO_DETECT_INTERFACE: Int = 3
 
         const val WEIGHT_7000: Int = 0
         const val WEIGHT_8000: Int = 1
@@ -47,7 +49,6 @@ class SettingsStore(private val context: Context) {
                 ASPEN_INTERFACE -> "Aspen"
                 ECONNECT_INTERFACE -> "eConnect"
                 GOGO_INTERFACE -> "Gogo"
-                AUTO_DETECT_INTERFACE -> "Auto-detect"
                 else -> "Unknown"
             }
         }
@@ -76,7 +77,7 @@ class SettingsStore(private val context: Context) {
 
     val avionicsInterfaceFlow: Flow<Int> = context.dataStore.data
         .map { preferences ->
-            preferences[AVIONICS_INTERFACE] ?: AUTO_DETECT_INTERFACE
+            preferences[AVIONICS_INTERFACE] ?: ASPEN_INTERFACE
         }
 
     suspend fun saveAvionicsInterface(avionics: Int) {
@@ -93,6 +94,28 @@ class SettingsStore(private val context: Context) {
     suspend fun saveAircraftWeight(weight: Int) {
         context.dataStore.edit { preferences ->
             preferences[AIRCRAFT_WEIGHT] = weight
+        }
+    }
+
+    val networkSsidFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[NETWORK_SSID] ?: ""
+        }
+
+    suspend fun saveNetworkSsid(ssid: String) {
+        context.dataStore.edit { preferences ->
+            preferences[NETWORK_SSID] = ssid
+        }
+    }
+
+    val networkPasswordFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[NETWORK_PASSWORD] ?: ""
+        }
+
+    suspend fun saveNetworkPassword(password: String) {
+        context.dataStore.edit { preferences ->
+            preferences[NETWORK_PASSWORD] = password
         }
     }
 }

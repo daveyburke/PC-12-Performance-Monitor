@@ -27,45 +27,6 @@ import java.time.Instant.now
 private const val MISSING_DATA = "---"
 private const val DATA_MAX_AGE = 60 // 1min
 
-fun UIState(
-    avionicsData: AvionicsData,
-    perfData: PerfData,
-    avionicsInterface: String,
-    age: Long
-): UIState {
-    val deltaIsaTemp = avionicsData.outsideTemp + (avionicsData.altitude + 500) / 1000 * 2 - 15
-
-    val altitudeStr =
-        if (avionicsInterface == "") MISSING_DATA else avionicsData.altitude.toString()
-    val outsideTempStr =
-        if (avionicsInterface == "") MISSING_DATA else avionicsData.outsideTemp.toString()
-    val deltaIsaTempStr = when {
-        avionicsInterface == "" -> ""
-        deltaIsaTemp > 0 -> "(ISA +$deltaIsaTemp)"
-        deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
-        else -> ""
-    }
-
-    val torqueStr =
-        if (perfData.torque.isNaN() || age > DATA_MAX_AGE) MISSING_DATA else perfData.torque.toString()
-    val fuelFlowStr =
-        if (perfData.torque.isNaN() || age > DATA_MAX_AGE || perfData.fuelFlow == 0) MISSING_DATA else perfData.fuelFlow.toString()
-    val airspeedStr =
-        if (perfData.torque.isNaN() || age > DATA_MAX_AGE || perfData.airspeed == 0) MISSING_DATA else perfData.airspeed.toString()
-
-    val isOldData = isDataOld(age, avionicsInterface)
-    return UIState(
-        altitudeStr,
-        outsideTempStr,
-        deltaIsaTempStr,
-        torqueStr,
-        fuelFlowStr,
-        airspeedStr,
-        getAvionicsLabel(age, avionicsInterface),
-        isOldData
-    )
-}
-
 data class UIState(
     val altitude: String = MISSING_DATA,
     val outsideTemp: String = MISSING_DATA,
@@ -76,6 +37,33 @@ data class UIState(
     val avionicsLabel: String = "",
     val isDataOld: Boolean = true
 )
+
+fun UIState(
+    avionicsData: AvionicsData,
+    perfData: PerfData,
+    avionicsInterface: String,
+    age: Long
+): UIState {
+    val hasAvionicsData = avionicsInterface.isNotEmpty()
+    val isPerfDataValid = !perfData.torque.isNaN() && age <= DATA_MAX_AGE
+    val deltaIsaTemp = avionicsData.outsideTemp + (avionicsData.altitude + 500) / 1000 * 2 - 15
+
+    return UIState(
+        altitude = if (hasAvionicsData) avionicsData.altitude.toString() else MISSING_DATA,
+        outsideTemp = if (hasAvionicsData) avionicsData.outsideTemp.toString() else MISSING_DATA,
+        deltaIsaTemp = when {
+            !hasAvionicsData -> ""
+            deltaIsaTemp > 0 -> "(ISA +$deltaIsaTemp)"
+            deltaIsaTemp < 0 -> "(ISA $deltaIsaTemp)"
+            else -> ""
+        },
+        torqueStr = if (isPerfDataValid) perfData.torque.toString() else MISSING_DATA,
+        fuelFlowStr = if (isPerfDataValid && perfData.fuelFlow != 0) perfData.fuelFlow.toString() else MISSING_DATA,
+        airspeed = if (isPerfDataValid && perfData.airspeed != 0) perfData.airspeed.toString() else MISSING_DATA,
+        avionicsLabel = getAvionicsLabel(age, avionicsInterface),
+        isDataOld = isDataOld(age, avionicsInterface)
+    )
+}
 
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
     private val TAG = FlightDataViewModel::class.qualifiedName

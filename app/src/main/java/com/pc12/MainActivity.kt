@@ -133,7 +133,6 @@ fun PerformanceDataDisplay(uiState: UIState) {
     }
 }
 
-
 @Composable
 fun OverflowMenu() {
     val expanded = remember { mutableStateOf(false) }
@@ -219,7 +218,6 @@ fun AvionicsInterfaceSettings(onClose: () -> Unit) {
         SettingsStore.avionicsInterfaceToString(SettingsStore.ECONNECT_INTERFACE),
         SettingsStore.avionicsInterfaceToString(SettingsStore.GOGO_INTERFACE))
 
-    // A custom AlertDialog is now used to accommodate the new text fields
     AlertDialog(
         title = {
             Text(text = "Avionics Interface")

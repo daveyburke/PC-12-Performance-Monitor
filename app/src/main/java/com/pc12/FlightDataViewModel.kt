@@ -99,7 +99,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
             Log.i(TAG, "Starting network I/O coroutine...")
             networkRequestLoop()
             isNetworkJobRunning = true
-
         }
     }
 

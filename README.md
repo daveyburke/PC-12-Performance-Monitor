@@ -23,7 +23,7 @@ The app has a simple/clean UI and supports dark mode for night flying.
 <br/>
 Data refresh is attempted every 5 seconds when the app is open. If the data is stale (older than 1 min), the text outline boxes will turn red and calculated values will be displayed as ---. The age of the received avionics data is shown in seconds/minutes.
 <br/>
-<br/>The aircraft type, avionics interface, and weight can be configured from the overflow menu and is persisted across app restarts. The auto-detect avionics option is useful if you switch the phone's Wi-Fi networks mid-flight.
+<br/>The aircraft type, avionics interface, and weight can be configured from the overflow menu and is persisted across app restarts. You can optionally specify the Wi-Fi access point for the app to automatically connect to. This is useful if the phone is connected to another access point for Internet (e.g. Starlink) and you need the app to temporarily connect to an avionics Wi-Fi (say the Aspen CG-100, e.g. "PC12N123AB") when open.
 <br/>
 <br/>
 <b>Warning</b>: THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine torque. Always refer to the manufacturer's QRH or AFM

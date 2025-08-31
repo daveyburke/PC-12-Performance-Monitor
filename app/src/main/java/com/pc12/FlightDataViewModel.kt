@@ -74,6 +74,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private val settingsStore = SettingsStore(application)
     private var isNetworkJobRunning : Boolean = false
     private lateinit var networkJob : Job
+    private var userAgreedTerms = false
     private var lastRequestSuccessful = true
     private var lastSuccessTime: Long = 0
     private var wifiNetwork: Network? = null
@@ -81,6 +82,14 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     var uiState by mutableStateOf(UIState())
         private set
+
+    fun setUserAgreedTerms() {
+        userAgreedTerms = true
+    }
+
+    fun didUserAgreeTerms() : Boolean {
+        return userAgreedTerms
+    }
 
     fun startNetworkRequests() {
         if (!isNetworkJobRunning) {
@@ -189,7 +198,7 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
             // If user has set an app-specific Wi-Fi network then add this to request
             val networkSsid = settingsStore.networkSsidFlow.first()
             val networkPassword = settingsStore.networkPasswordFlow.first()
-            if (!networkSsid.isEmpty()) {
+            if (networkSsid.isNotEmpty()) {
                 Log.i(TAG, "Specific network requested: $networkSsid")
                 Toast.makeText(
                     theApp,

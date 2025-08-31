@@ -33,7 +33,6 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val flightDataViewModel by viewModels<FlightDataViewModel>()
-    private var userAgreedTerms = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,9 +44,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    if (!userAgreedTerms) {
+                    if (!flightDataViewModel.didUserAgreeTerms()) {
                         WarningDialog({  // onProceed
-                                userAgreedTerms = true
+                                flightDataViewModel.setUserAgreedTerms()
                                 flightDataViewModel.startNetworkRequests()
                             },{  // onCancel
                                 finish()
@@ -68,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (userAgreedTerms) {
+        if (flightDataViewModel.didUserAgreeTerms()) {
             flightDataViewModel.startNetworkRequests()
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

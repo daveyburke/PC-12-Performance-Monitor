@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "com.pc12"
-        minSdk 26
+        minSdk 29
         targetSdk 32
         versionCode 8
         versionName "1.07"

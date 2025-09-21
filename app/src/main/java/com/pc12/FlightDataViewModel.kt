@@ -67,7 +67,7 @@ fun UIState(
 
 class FlightDataViewModel(application: Application): AndroidViewModel(application) {
     private val TAG = FlightDataViewModel::class.qualifiedName
-    private val REQUEST_DATA_PERIOD_MSEC = 5000L
+    private val REQUEST_DATA_PERIOD_MSEC = 3000L
     private val REQUEST_DATA_RETRY_MSEC = 1000L
 
     private val theApp = application
@@ -75,7 +75,6 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     private var isNetworkJobRunning : Boolean = false
     private lateinit var networkJob : Job
     private var userAgreedTerms = false
-    private var lastRequestSuccessful = true
     private var lastSuccessTime: Long = 0
     private var wifiNetwork: Network? = null
     private var wifiNetworkCallback: NetworkCallback? = null
@@ -109,59 +108,63 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
 
     private fun networkRequestLoop() {
         networkJob = viewModelScope.launch {
-            registerWiFiNetworkCallback()
-            while (isActive) {
-                if (wifiNetwork == null) {
-                    Log.w(TAG, "Wi-Fi network not ready")
-                    delay(REQUEST_DATA_RETRY_MSEC)
-                    continue
-                }
+            try {
+                registerWiFiNetworkCallback()
+                lastSuccessTime = 0
+                while (isActive) {
+                    if (wifiNetwork == null) {
+                        Log.w(TAG, "Wi-Fi network not ready")
+                        delay(REQUEST_DATA_RETRY_MSEC)
+                        continue
+                    }
 
-                val interfaceType = settingsStore.avionicsInterfaceFlow.first()
-                val avionicsInterface = when (interfaceType) {
-                    SettingsStore.ASPEN_INTERFACE -> AspenAvionicsInterface()
-                    SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
-                    SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
-                    else -> AspenAvionicsInterface()  // should never get here
-                }
+                    val interfaceType = settingsStore.avionicsInterfaceFlow.first()
+                    val avionicsInterface = when (interfaceType) {
+                        SettingsStore.ASPEN_INTERFACE -> AspenAvionicsInterface()
+                        SettingsStore.ECONNECT_INTERFACE -> EConnectAvionicsInterface()
+                        SettingsStore.GOGO_INTERFACE -> GogoAvionicsInterface()
+                        else -> AspenAvionicsInterface()  // should never get here
+                    }
 
-                val avionicsInterfaceStr = SettingsStore.avionicsInterfaceToString(interfaceType)
-                Log.i(TAG, "Requesting data via $avionicsInterfaceStr")
-                val data : AvionicsData?
-                withContext(Dispatchers.IO) {
-                    data = avionicsInterface.requestData(wifiNetwork!!)
-                }  // end I/O CoroutineScope
+                    val avionicsInterfaceStr =
+                        SettingsStore.avionicsInterfaceToString(interfaceType)
+                    Log.i(TAG, "Requesting data via $avionicsInterfaceStr")
+                    val data: AvionicsData?
+                    withContext(Dispatchers.IO) {
+                        data = avionicsInterface.requestData(wifiNetwork!!)
+                    }  // end I/O CoroutineScope
 
-                if (data != null) {
-                    val aircraftType = settingsStore.aircraftTypeFlow.first()
-                    val weight = settingsStore.aircraftWeightFlow.first()
+                    if (data != null) {
+                        val aircraftType = settingsStore.aircraftTypeFlow.first()
+                        val weight = settingsStore.aircraftWeightFlow.first()
 
-                    Log.i(TAG, "Calculating torque for: $data, " +
-                            SettingsStore.aircraftWeightToString(weight) + ", " +
-                            SettingsStore.aircraftTypeToString(aircraftType))
+                        Log.i(
+                            TAG, "Calculating torque for: $data, " +
+                                    SettingsStore.aircraftWeightToString(weight) + ", " +
+                                    SettingsStore.aircraftTypeToString(aircraftType)
+                        )
 
-                    val perfData = PerfCalculator.compute(data, aircraftType, weight)
+                        val perfData = PerfCalculator.compute(data, aircraftType, weight)
 
-                    uiState = UIState(
-                        data,
-                        perfData,
-                        avionicsInterfaceStr,
-                        0
-                    )
-                    lastSuccessTime = now().epochSecond
-                    lastRequestSuccessful = true
+                        uiState = UIState(
+                            data,
+                            perfData,
+                            avionicsInterfaceStr,
+                            0
+                        )
+                        lastSuccessTime = now().epochSecond
+                    } else if (lastSuccessTime > 0) {   // no longer getting current data
+                        val age = now().epochSecond - lastSuccessTime
+                        uiState = uiState.copy(
+                            avionicsLabel = getAvionicsLabel(age, avionicsInterfaceStr),
+                            isDataOld = isDataOld(age, avionicsInterfaceStr)
+                        )
+                    }
                     delay(REQUEST_DATA_PERIOD_MSEC)
-                } else {
-                    val age = now().epochSecond - lastSuccessTime
-                    uiState = uiState.copy(
-                        avionicsLabel = getAvionicsLabel(age, avionicsInterfaceStr),
-                        isDataOld = isDataOld(age, avionicsInterfaceStr)
-                    )
-                    lastRequestSuccessful = false
-                    delay(REQUEST_DATA_RETRY_MSEC)
                 }
+            } finally {  // cancel exception
+                unregisterWiFiNetworkCallback()
             }
-            unregisterWiFiNetworkCallback()
         }
     }
 

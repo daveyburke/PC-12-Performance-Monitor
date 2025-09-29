@@ -169,55 +169,59 @@ class FlightDataViewModel(application: Application): AndroidViewModel(applicatio
     }
 
     private suspend fun registerWiFiNetworkCallback() {
-        if (wifiNetworkCallback == null) {
-            wifiNetworkCallback = object : NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    Log.i(TAG, "Network available: $network")
+        if (wifiNetworkCallback != null) return
+
+        val rb = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+
+        // If user has set an app-specific Wi-Fi network then add this to request
+        val networkSsid = settingsStore.networkSsidFlow.first()
+        val networkPassword = settingsStore.networkPasswordFlow.first()
+        val appSpecificNetworkSet = networkSsid.isNotEmpty()
+        if (appSpecificNetworkSet) {
+            Log.i(TAG, "Specific network requested: $networkSsid")
+            Toast.makeText(
+                theApp,
+                "Connecting to $networkSsid",
+                Toast.LENGTH_LONG
+            ).show()
+            val specifier = WifiNetworkSpecifier.Builder()
+                .setSsid(networkSsid)
+                .setWpa2Passphrase(networkPassword)
+                .build()
+            rb.setNetworkSpecifier(specifier)
+        }
+
+        // Hand network changes
+        wifiNetworkCallback = object : NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Log.i(TAG, "Network available: $network")
+                if (appSpecificNetworkSet) {
                     Toast.makeText(
                         theApp,
                         "Connected to network",
                         Toast.LENGTH_LONG
                     ).show()
-                    wifiNetwork = network
                 }
-                override fun onLost(network: Network) {
-                    if (network == wifiNetwork) {
-                        Log.i(TAG, "Network lost: $network")
-                        wifiNetwork = null
-                    }
-                }
-                override fun onUnavailable() {
-                    Log.e(TAG, "Network onUnavailable")
-                    Toast.makeText(
-                        theApp,
-                        "Could not connect to network",
-                        Toast.LENGTH_LONG
-                    ).show()
+                wifiNetwork = network
+            }
+            override fun onLost(network: Network) {
+                if (network == wifiNetwork) {
+                    Log.i(TAG, "Network lost: $network")
+                    wifiNetwork = null
                 }
             }
-
-            val rb = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-
-            // If user has set an app-specific Wi-Fi network then add this to request
-            val networkSsid = settingsStore.networkSsidFlow.first()
-            val networkPassword = settingsStore.networkPasswordFlow.first()
-            if (networkSsid.isNotEmpty()) {
-                Log.i(TAG, "Specific network requested: $networkSsid")
+            override fun onUnavailable() {
+                Log.e(TAG, "Network onUnavailable")
                 Toast.makeText(
                     theApp,
-                    "Connecting to $networkSsid",
+                    "Could not connect to network",
                     Toast.LENGTH_LONG
                 ).show()
-                val specifier = WifiNetworkSpecifier.Builder()
-                    .setSsid(networkSsid)
-                    .setWpa2Passphrase(networkPassword)
-                    .build()
-                rb.setNetworkSpecifier(specifier)
             }
-
-            val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.requestNetwork(rb.build(), wifiNetworkCallback as NetworkCallback)
         }
+
+        val cm = theApp.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        cm.requestNetwork(rb.build(), wifiNetworkCallback as NetworkCallback)
     }
 
     private fun unregisterWiFiNetworkCallback() {

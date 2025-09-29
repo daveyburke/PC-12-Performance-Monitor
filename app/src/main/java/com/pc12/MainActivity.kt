@@ -2,6 +2,7 @@ package com.pc12
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,15 +11,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -26,7 +28,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.view.WindowCompat
 import com.pc12.ui.theme.Cyan
 import com.pc12.ui.theme.PC12PerformanceMonitorTheme
 import kotlinx.coroutines.launch
@@ -38,32 +41,33 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            window.statusBarColor = Cyan.toArgb()
             PC12PerformanceMonitorTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colors.background
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     if (!flightDataViewModel.didUserAgreeTerms()) {
                         WarningDialog({  // onProceed
-                                flightDataViewModel.setUserAgreedTerms()
-                                flightDataViewModel.startNetworkRequests()
-                            },{  // onCancel
-                                finish()
-                            }
+                            flightDataViewModel.setUserAgreedTerms()
+                            flightDataViewModel.startNetworkRequests()
+                        }, {  // onCancel
+                            finish()
+                        }
                         )
                     }
-                    OverflowMenu()
-                    PerformanceMonitorScreen(flightDataViewModel)
+                    OverflowMenu {
+                        PerformanceMonitorScreen(flightDataViewModel)
+                    }
                 }
             }
         }
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         flightDataViewModel.stopNetworkRequests()
     }
+
 
     override fun onResume() {
         super.onResume()
@@ -76,20 +80,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PerformanceMonitorScreen(flightDataViewModel: FlightDataViewModel) {
-    val systemUiController = rememberSystemUiController()
-    val backgroundColor = MaterialTheme.colors.background
-    SideEffect {
-        systemUiController.setNavigationBarColor(color = backgroundColor)
-    }
-
     PerformanceDataDisplay(flightDataViewModel.uiState)
 }
 
 @Composable
 fun PerformanceDataDisplay(uiState: UIState) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         Column {
             val statusColor = if (uiState.isDataOld) {
@@ -104,7 +102,7 @@ fun PerformanceDataDisplay(uiState: UIState) {
                 onValueChange = { },
                 label = { Text("Avionics Data ${uiState.avionicsLabel}") },
                 enabled = false,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = textColor,
                     disabledBorderColor = statusColor,
                     disabledLabelColor = statusColor,
@@ -121,7 +119,7 @@ fun PerformanceDataDisplay(uiState: UIState) {
                     Text("Maximum Cruise Power")
                 },
                 enabled = false,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = textColor,
                     disabledBorderColor = statusColor,
                     disabledLabelColor = statusColor,
@@ -132,10 +130,10 @@ fun PerformanceDataDisplay(uiState: UIState) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OverflowMenu() {
+fun OverflowMenu(content: @Composable () -> Unit) {
     val expanded = remember { mutableStateOf(false) }
-    val scaffoldState = rememberScaffoldState()
     val showAircraftTypeDialog = remember { mutableStateOf(false) }
     val showAvionicsInterfaceDialog = remember { mutableStateOf(false) }
     val showAircraftWeightDialog = remember { mutableStateOf(false) }
@@ -150,14 +148,37 @@ fun OverflowMenu() {
         showAircraftWeightDialog.value = false
     }
 
+    // Set up system UI colors
+    val view = LocalView.current
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val isDarkTheme = isSystemInDarkTheme()
+
+    LaunchedEffect(Unit) {
+        val window = (view.context as ComponentActivity).window
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Cyan.toArgb()
+        window.navigationBarColor = backgroundColor.toArgb()
+
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = !isDarkTheme
+        }
+    }
+
     Scaffold(
-        scaffoldState = scaffoldState,
-        content = { },
+        content = { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                content() // Call the content that was passed in
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text("PC-12 Performance Monitor") },
-                backgroundColor = Cyan,
-                contentColor = Color.White,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Cyan,
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
                 actions = {
                     IconButton(
                         onClick = {
@@ -165,32 +186,35 @@ fun OverflowMenu() {
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Aircraft Type",
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Menu",
                             tint = Color.White,
                         )
                     }
                     DropdownMenu(
                         expanded = expanded.value,
                         onDismissRequest = { expanded.value = false }) {
-                        DropdownMenuItem(onClick = {
-                            showAircraftTypeDialog.value = true
-                            expanded.value = false
-                        }) {
-                            Text(text = "Aircraft Type")
-                        }
-                        DropdownMenuItem(onClick = {
-                            showAvionicsInterfaceDialog.value = true
-                            expanded.value = false
-                        }) {
-                            Text(text = "Avionics Interface")
-                        }
-                        DropdownMenuItem(onClick = {
-                            showAircraftWeightDialog.value = true
-                            expanded.value = false
-                        }) {
-                            Text(text = "Aircraft Weight")
-                        }
+                        DropdownMenuItem(
+                            text = { Text(text = "Aircraft Type") },
+                            onClick = {
+                                showAircraftTypeDialog.value = true
+                                expanded.value = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(text = "Avionics Interface") },
+                            onClick = {
+                                showAvionicsInterfaceDialog.value = true
+                                expanded.value = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(text = "Aircraft Weight") },
+                            onClick = {
+                                showAircraftWeightDialog.value = true
+                                expanded.value = false
+                            }
+                        )
                     }
                 }
             )
@@ -270,8 +294,8 @@ fun AvionicsInterfaceSettings(onClose: () -> Unit) {
                     scope.launch {
                         settingsStore.saveNetworkSsid(ssid)
                         settingsStore.saveNetworkPassword(password)
+                        onClose()
                     }
-                    onClose()
                 }) {
                 Text("OK")
             }
@@ -294,11 +318,11 @@ fun AircraftTypeSettings(onClose: () -> Unit) {
 
     SelectOptionsDialog("Aircraft Type", optionItems, aircraftTypeFlow.value,
         onSelected =
-        {
-            scope.launch {
-                settingsStore.saveAircraftType(it)
-            }
-        },
+            {
+                scope.launch {
+                    settingsStore.saveAircraftType(it)
+                }
+            },
         onClose = { onClose() }
     )
 }
@@ -319,11 +343,11 @@ fun AircraftWeightSettings(onClose: () -> Unit) {
 
     SelectOptionsDialog("Aircraft Weight", optionItems, aircraftWeightFlow.value,
         onSelected =
-        {
-            scope.launch {
-                settingsStore.saveAircraftWeight(it)
-            }
-        },
+            {
+                scope.launch {
+                    settingsStore.saveAircraftWeight(it)
+                }
+            },
         onClose = { onClose() }
     )
 }
@@ -348,7 +372,7 @@ fun SelectOptionsDialog(title: String, optionItems: List<String>, selectedIndex:
                         RadioButton(
                             selected = index == selectedIndex,
                             onClick = { onSelected(index) }
-                            )
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = item,
@@ -377,23 +401,26 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
     if (firstRun.value) {
         val isTermsChecked = remember { mutableStateOf(false) }
         AlertDialog(
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier.fillMaxWidth(0.85f),
             title = {
                 Text(text = "Warning", fontWeight = FontWeight.Bold)
             },
-            backgroundColor = Color(200,0,0),
-            contentColor = Color.White,
+            containerColor = Color(200,0,0),
+            titleContentColor = Color.White,
+            textContentColor = Color.White,
             text = {
                 Column {
                     Text(
-                        "THIS APP IS FOR DEMO/MONITORING PURPOSES ONLY. It must not be used to set engine " +
-                             "torque. Always refer to the manufacturer's QRH or AFM for " +
-                             "authoritative engine settings.\n\n" +
-                             "NO WARRANTY: This app is provided as is. No guarantee is made " +
-                             "that it is free from mistakes or errors. Use at your own risk.\n\n" +
-                             "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +
-                             "be held responsible for any engine or aircraft damage, " +
-                             "consequential / indirect / special damages, or loss of profit or revenue " +
-                             "resulting from the use of this app.\n",
+                        "THIS APP IS FOR DEMO / MONITORING PURPOSES ONLY. It must not be used to set engine " +
+                                "torque. Always refer to the manufacturer's QRH or AFM for " +
+                                "authoritative engine settings.\n\n" +
+                                "NO WARRANTY: This app is provided as is. No guarantee is made " +
+                                "that it is free from mistakes or errors. Use at your own risk.\n\n" +
+                                "LIMITATION OF LIABILITY: In no event shall the author(s) of this app " +
+                                "be held responsible for any engine or aircraft damage, " +
+                                "consequential / indirect / special damages, or loss of profit or revenue " +
+                                "resulting from the use of this app.\n",
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
@@ -401,16 +428,19 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "I agree to these terms & conditions ",
+                            text = "I agree to these terms & conditions",
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold,)
                         Checkbox(
                             checked = isTermsChecked.value,
                             onCheckedChange = { isTermsChecked.value = it },
                             enabled = true,
-                            colors = CheckboxDefaults.colors(uncheckedColor = Color.White,
-                                                             checkedColor = Color.White,
-                                                             checkmarkColor = Color.Black)
+                            modifier = Modifier.offset(x = (-8).dp),
+                            colors = CheckboxDefaults.colors(
+                                uncheckedColor = Color.White,
+                                checkedColor = Color.White,
+                                checkmarkColor = Color.Black
+                            )
                         )
                     }
                 }
@@ -418,7 +448,10 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
             confirmButton = {
                 Button(
                     enabled = isTermsChecked.value,
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.White, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
                     onClick = {
                         onProceed()
                         firstRun.value = false
@@ -428,7 +461,10 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
             },
             dismissButton = {
                 Button(
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.White, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
                     onClick = {
                         onCancel()
                     }) {
@@ -445,7 +481,8 @@ fun WarningDialog(onProceed: () -> Unit, onCancel: () -> Unit) {
 @Composable
 fun DefaultPreview() {
     PC12PerformanceMonitorTheme {
-        OverflowMenu()
-        PerformanceDataDisplay(UIState("24000", "-32", "30.1f", "300", "275", "5", "Gogo", false))
+        OverflowMenu {
+            PerformanceDataDisplay(UIState("24000", "-32", "30.1f", "300", "275", "5", "Gogo", false))
+        }
     }
 }
